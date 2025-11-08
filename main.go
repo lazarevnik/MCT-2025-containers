@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"net/http"
 	"os"
@@ -43,6 +45,29 @@ func main() {
 		log.Error("ping db", "err", err)
 	}
 
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPort := os.Getenv("REDIS_PORT")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+
+	redisCache := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: redisPassword,
+	})
+
+	var baseCount int64
+	err = conn.QueryRow(ctx, "SELECT count FROM visits_counter").Scan(&baseCount)
+	if err != nil {
+		log.Error("select visits counter", "err", err)
+		return
+	}
+
+	_, err = redisCache.Set(ctx, "visits_counter", strconv.FormatInt(baseCount, 10), redis.KeepTTL).Result()
+	if err != nil {
+		log.Error("redis base count", "err", err)
+		return
+	}
+
 	router := gin.Default()
 
 	router.GET("/ping", func(c *gin.Context) {
@@ -64,6 +89,13 @@ func main() {
 		}
 		log.Debug("update visits counter", "count", count)
 
+		_, err = redisCache.Incr(ctx, "visits_counter").Result()
+		if err != nil {
+			log.Error("redis increment", "err", err)
+			c.String(http.StatusInternalServerError, "redis increment error")
+			return
+		}
+
 		c.String(http.StatusOK, "pong")
 	})
 
@@ -77,6 +109,18 @@ func main() {
 		}
 		log.Debug("select visits counter", "count", count)
 		c.String(http.StatusOK, strconv.FormatInt(count, 10))
+	})
+
+	router.GET("/visits_cache", func(c *gin.Context) {
+		redisCount, err := redisCache.Get(ctx, "visits_counter").Result()
+		if errors.Is(err, redis.Nil) {
+			redisCount = "0"
+		} else if err != nil {
+			log.Error("redis get visits counter", "err", err)
+			c.String(http.StatusInternalServerError, "redis get visits counter error")
+			return
+		}
+		c.String(http.StatusOK, redisCount)
 	})
 
 	err = router.Run(":5000")

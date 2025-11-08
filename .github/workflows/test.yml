@@ -36,6 +36,15 @@ jobs:
           fi
           echo "Web test passed!"
 
+      - name: Test cache response
+        run: |
+          response=$(curl -s http://localhost:5000/visits_cache)
+          if [[ "$response" =~ ^[0-9]+$ ]]; then
+            echo "Expected a numeric response, got: $response"
+            exit 1
+          fi
+          echo "Cache test passed!"
+
       - name: Test PostgreSQL connection
         run: |
           docker compose exec -T db pg_isready -U user -d app
