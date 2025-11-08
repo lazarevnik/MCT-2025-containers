@@ -49,6 +49,11 @@ jobs:
         run: |
           docker compose exec -T db pg_isready -U user -d app
 
+      - name: Run integration tests
+        run: |
+          go test -v -coverprofile=coverage.out ./endpoints_test.go 
+          go tool cover -func=coverage.out
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs

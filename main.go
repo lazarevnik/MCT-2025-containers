@@ -4,20 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-)
-
-const queryIPs = "CREATE TABLE IF NOT EXISTS client_ips (id SERIAL PRIMARY KEY, ip_address TEXT NOT NULL, requested_at TIMESTAMPTZ DEFAULT now());"
-const (
-	queryVisitsCreate = "CREATE TABLE IF NOT EXISTS visits_counter (count BIGINT NOT NULL DEFAULT 0);"
-	queryVisitsInsert = "INSERT INTO visits_counter (count) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM visits_counter);"
 )
 
 func main() {
