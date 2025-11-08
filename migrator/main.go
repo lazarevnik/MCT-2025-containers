@@ -32,22 +32,23 @@ func main() {
 	defer conn.Close()
 	if err != nil {
 		log.Error("connect to db", "err", err)
+		panic(err)
 	}
 
 	_, err = conn.Exec(ctx, queryIPs)
 	if err != nil {
 		log.Error("query ips", "err", err)
-		return
+		panic(err)
 	}
 	_, err = conn.Exec(ctx, queryVisitsCreate)
 	if err != nil {
 		log.Error("query create ips", "err", err)
-		return
+		panic(err)
 	}
 	_, err = conn.Exec(ctx, queryVisitsInsert)
 	if err != nil {
 		log.Error("query insert ips", "err", err)
-		return
+		panic(err)
 	}
 
 	return

@@ -23,6 +23,7 @@ func main() {
 	db := os.Getenv("POSTGRES_DB")
 	user := os.Getenv("POSTGRES_USER")
 	password := os.Getenv("POSTGRES_PASSWORD")
+	env := os.Getenv("ENV")
 
 	connStr := fmt.Sprintf(
 		"postgres://%s:%s@%s/%s?sslmode=disable",
@@ -96,6 +97,11 @@ func main() {
 
 	router.GET("/visits", func(c *gin.Context) {
 		var count int64
+		if env == "dev" {
+			count = -1
+			c.String(http.StatusOK, strconv.FormatInt(count, 10))
+			return
+		}
 		err = conn.QueryRow(ctx, "SELECT count FROM visits_counter").Scan(&count)
 		if err != nil {
 			log.Error("select visits counter", "err", err)
@@ -107,6 +113,11 @@ func main() {
 	})
 
 	router.GET("/visits_cache", func(c *gin.Context) {
+		if env == "dev" {
+			count := int64(-1)
+			c.String(http.StatusOK, strconv.FormatInt(count, 10))
+			return
+		}
 		redisCount, err := redisCache.Get(ctx, "visits_counter").Result()
 		if errors.Is(err, redis.Nil) {
 			redisCount = "0"
