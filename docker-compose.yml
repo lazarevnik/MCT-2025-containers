@@ -6,10 +6,20 @@ services:
       POSTGRES_DB: db
       POSTGRES_USER: kuzalex
       POSTGRES_PASSWORD: 1234
+  migrator:
+    build: ./migrator
+    depends_on:
+      - db
+    environment:
+      POSTGRES_HOST: db:5432
+      POSTGRES_DB: db
+      POSTGRES_USER: kuzalex
+      POSTGRES_PASSWORD: 1234
   app:
     build: .
     depends_on:
       - db
+      - migrator
     environment:
       POSTGRES_HOST: db:5432
       POSTGRES_DB: db

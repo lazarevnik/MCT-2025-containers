@@ -32,30 +32,10 @@ func main() {
 		user, password, host, db,
 	)
 
-	//conn, err := pgx.Connect(context.Background(), connStr)
-	//if err != nil {
-	//	log.Error("connect to db", "err", err)
-	//}
 	conn, err := pgxpool.New(ctx, connStr)
 	defer conn.Close()
 	if err != nil {
 		log.Error("connect to db", "err", err)
-	}
-
-	_, err = conn.Query(ctx, queryIPs)
-	if err != nil {
-		log.Error("query ips", "err", err)
-		return
-	}
-	_, err = conn.Query(ctx, queryVisitsCreate)
-	if err != nil {
-		log.Error("query create ips", "err", err)
-		return
-	}
-	_, err = conn.Query(ctx, queryVisitsInsert)
-	if err != nil {
-		log.Error("query insert ips", "err", err)
-		return
 	}
 
 	err = conn.Ping(ctx)
