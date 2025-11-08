@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:14.1-alpine
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: kuzalex
+      POSTGRES_PASSWORD: 1234
+  app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      POSTGRES_HOST: db:5432
+      POSTGRES_DB: db
+      POSTGRES_USER: kuzalex
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5000:5000"
