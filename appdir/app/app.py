@@ -16,6 +16,8 @@ PINGS_TABLE_NAME = getenv('PINGS_TABLE_NAME', 'pings')
 REDIS_HOST_NAME = getenv('REDIS_HOST_NAME', 'visits_cache')
 REDIS_PORT = getenv('REDIS_PORT', '6379')
 
+DEV_MODE = getenv('DEV_MODE', '0') # set to '1' to run in developer mode
+
 @app.get('/', response_class=PlainTextResponse)
 async def root():
     return ""
@@ -58,6 +60,8 @@ async def ping(request: Request):
 
 @app.get('/visits', response_class=PlainTextResponse)
 async def visits():
+    if DEV_MODE != '0':
+        return str(-1)
     try:
         with redis.Redis(host=REDIS_HOST_NAME, port=REDIS_PORT, decode_responses=True) as r:
             if (cached_visits := r.get("visits")): # else: init in visits(), not there
@@ -102,4 +106,4 @@ async def visits():
                 conn.close()
         except NameError:
             pass
-    return str(-1)
+    return str(-2)

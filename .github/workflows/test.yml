@@ -49,6 +49,15 @@ jobs:
             exit 1
           fi
           echo "Web test passed!"
+      
+      - name: Test /visits response
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" -lt 0 ]]; then
+            echo "Expected visits to be non-negarive; got $response"
+            exit 1
+          fi
+          echo "/visits test passed!"
 
       - name: Test PostgreSQL connection
         run: |
