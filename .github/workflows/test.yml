@@ -5,20 +5,21 @@ on:
     branches: [ main ]
 
 jobs:
-  test-compose:
+  test-production:
     runs-on: ubuntu-latest
+    name: Test Production Mode
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Start services
-        run: docker compose up -d
+        run: docker compose -f docker-compose.yml up -d
 
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:8000 >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
@@ -29,16 +30,80 @@ jobs:
 
       - name: Test web response
         run: |
-          response=$(curl -s http://localhost:5000/ping)
+          response=$(curl -s http://localhost:8000/ping)
           if [[ "$response" != "pong" ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
           fi
-          echo "Web test passed!"
 
       - name: Test PostgreSQL connection
         run: |
           docker compose exec -T db pg_isready -U user -d app
+
+      - name: Wait for database initialization(1 dop)
+        run: |
+          timeout=60
+          while [ $timeout -gt 0 ]; do
+            if docker compose exec -T db psql -U user -d app -c "\dt visits" | grep -q "visits"; then
+              break
+            fi
+            sleep 2
+            ((timeout--))
+          done
+          if [ $timeout -eq 0 ]; then
+            echo "Database initialization failed"
+            exit 1
+          fi
+
+      - name: Test Redis connection(2 dop)
+        run: |
+          docker compose exec -T redis redis-cli ping
+
+      - name: Set up Python(3 dop)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies and run tests(3 dop)
+        working-directory: visitor
+        run: |
+          pip install -r requirements.txt
+          python -m pytest --cov=. --cov-report=term-missing --cov-report=xml --cov-fail-under=60 -v
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
+
+  test-dev:
+    runs-on: ubuntu-latest
+    name: Test Development Mode
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start services
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+      - name: Wait for web to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:8000 >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test dev mode visits endpoint(4 dop)
+        run: |
+          response=$(curl -s http://localhost:8000/visits)
+          if [[ "$response" != "-1" ]]; then
+            echo "Expected '-1' in dev mode, got: $response"
+            exit 1
+          fi
 
       - name: Show logs on failure
         if: failure()
