@@ -1,0 +1,4 @@
+fastapi[standard]>=0.121.0,<0.122.0 # FastAPI
+pydantic>=2.7.0,<3.0.0
+psycopg2-binary>=2.9.0,<3.0.0 # for DB
+redis>=7.0.0,<8.0.0 # for cache

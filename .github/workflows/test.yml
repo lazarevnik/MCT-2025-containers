@@ -3,6 +3,7 @@ name: Docker Compose Test
 on:
   pull_request:
     branches: [ main ]
+# on: push
 
 jobs:
   test-compose:
@@ -14,6 +15,19 @@ jobs:
 
       - name: Start services
         run: docker compose up -d
+      
+      - name: Check initialization of DB
+        run: |
+          timeout=60
+          while ! docker compose ps --filter status=exited | tail -n 1 | grep -o  "init_db.*Exited (0)"; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Database initialization service failed to complete"
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "DB successfully initialized!"
 
       - name: Wait for web to be ready
         run: |
@@ -35,10 +49,23 @@ jobs:
             exit 1
           fi
           echo "Web test passed!"
+      
+      - name: Test /visits response
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" -lt 0 ]]; then
+            echo "Expected visits to be non-negarive; got $response"
+            exit 1
+          fi
+          echo "/visits test passed!"
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T db pg_isready -U postgres -d pings_db
+      
+      - name: Test Redis connection
+        run: |
+          docker compose exec -T visits_cache redis-cli ping | grep -x "PONG"
 
       - name: Show logs on failure
         if: failure()
