@@ -1,0 +1,11 @@
+services:
+  app:
+    build: ./appdir
+    env_file: "./env_vars.env"
+    environment:
+      POSTGRES_DB: "pings_db"
+    ports:
+     - "5000:80"
+  db:
+    image: "postgres"
+    env_file: "./env_vars.env"
