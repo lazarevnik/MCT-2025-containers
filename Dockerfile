@@ -1,28 +1,19 @@
-FROM python:3-slim
-# demisto/fastapi:0.120.1.5622230
+FROM python:3
 
 WORKDIR /app
 # installing requirements
-# COPY ./requirements.txt ./requirements.txt
 
-# RUN export PATH=$PATH:/usr/local/mysql/bin
+# installing prerequisites for MySQLdb
+RUN apt update
+RUN apt-get install -y python3-dev default-libmysqlclient-dev build-essential pkg-config
+COPY ./requirements.txt /app/requirements.txt
 
-# RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 
 # copying project to image
-COPY ./config.py .
-COPY ./main.py .
-COPY ./venv ./venv
-
-# venv
-# RUN python3 -m venv ./venv
-RUN ls
-RUN . /app/venv/bin/activate
-
-
-
+COPY . .
 
 # forwarding ports
 EXPOSE 8000
 
-# ENTRYPOINT ["fastapi", "run", "main.py"]
+ENTRYPOINT ["fastapi", "run", "main.py"]
