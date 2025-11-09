@@ -1,5 +1,6 @@
 import psycopg2
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 from os import getenv
 
 app = FastAPI()
@@ -11,7 +12,11 @@ DB_PASSWORD = getenv('POSTGRES_PASSWORD', '12345678')
 DB_PORT = getenv('DB_PORT', '5432')
 PINGS_TABLE_NAME = getenv('PINGS_TABLE_NAME', 'pings')
 
-@app.get('/ping') # curl localhost/ping
+@app.get('/', response_class=PlainTextResponse)
+async def root():
+    return ""
+
+@app.get('/ping', response_class=PlainTextResponse) # curl localhost/ping
 async def ping(request: Request):
     client_ip = request.client.host
     try:
@@ -36,7 +41,7 @@ async def ping(request: Request):
             pass
     return 'pong'
 
-@app.get('/visits')
+@app.get('/visits', response_class=PlainTextResponse)
 async def visits():
     try:
         conn = psycopg2.connect(
@@ -48,7 +53,7 @@ async def visits():
         )
         with conn.cursor() as cursor:
             cursor.execute(f'SELECT COUNT(*) FROM {PINGS_TABLE_NAME};')
-            return int(cursor.fetchone()[0])
+            return str(int(cursor.fetchone()[0]))
     except BaseException as E:
         with open('log.txt', 'a') as f:
             print(f'Exception on visits(): {E}', file=f)
@@ -58,4 +63,4 @@ async def visits():
                 conn.close()
         except NameError:
             pass
-    return -1
+    return str(-1)
