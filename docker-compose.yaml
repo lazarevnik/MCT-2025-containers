@@ -13,10 +13,17 @@ services:
   db:
     image: "postgres"
     env_file: "./env_vars.env"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER || exit 1"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+
   init_db:
     build: ./appdir
     env_file: "./env_vars.env"
     command: ["python", "app/init_db.py"]
     restart: no
     depends_on:
-     - db
+      db:
+        condition: service_healthy

@@ -9,10 +9,6 @@ DB_PASSWORD = getenv('POSTGRES_PASSWORD', '12345678')
 DB_PORT = getenv('DB_PORT', '5432')
 PINGS_TABLE_NAME = getenv('PINGS_TABLE_NAME', 'pings')
 
-sleep_time = 5
-print(f"[{__file__}] Waiting postgres starting for {sleep_time} secs...")
-sleep(sleep_time)
-
 try:
     conn = psycopg2.connect(
         host=DB_HOST_NAME,
@@ -23,7 +19,7 @@ try:
     )
     conn.autocommit = True
     with conn.cursor() as cursor:
-        cursor.execute(f'CREATE TABLE {PINGS_TABLE_NAME} ( id serial PRIMARY KEY, ip VARCHAR(15) );')
+        cursor.execute(f'CREATE TABLE IF NOT EXISTS {PINGS_TABLE_NAME} ( id serial PRIMARY KEY, ip VARCHAR(15) );')
 except BaseException as E:
     with open('log.txt', 'a') as f:
         print(f'[{__file__}] Exception: {E}')
