@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "insert into visits (ip_address) values ($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "46350a168d3947ea3620b4c6d63c4661a92ac3cd357d6214aefc73b43bf212e1"
+}
