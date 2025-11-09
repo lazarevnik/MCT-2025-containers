@@ -7,9 +7,10 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:-test}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-test}
-      POSTGRES_DB: ${DB_NAME:-ips}
+      POSTGRES_DB: ${DB_NAME:-test}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./psql:/docker-entrypoint-initdb.d
     networks:
       - app-network
     env_file:

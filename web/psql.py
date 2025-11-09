@@ -30,15 +30,6 @@ def make_request(query, params=None, fetch=True):
     finally:
         conn.close()
 
-def init_db():
-    query = """
-        CREATE TABLE IF NOT EXISTS ips (
-            id SERIAL PRIMARY KEY,
-            ip VARCHAR(45) NOT NULL
-        )
-    """
-    return make_request(query, fetch=False)
-
 def add_ip_request(ip):
     query = "INSERT INTO ips (ip) VALUES (%s)"
     return make_request(query, (ip,), fetch=False)
@@ -48,6 +39,3 @@ def requests_count(table_name="ips"):
         sql.Identifier(table_name)
     )
     return make_request(query)
-
-
-init_db()

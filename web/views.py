@@ -11,4 +11,4 @@ def ping():
 
 @app.route("/visits", methods=["GET"])
 def visits():
-    return f"{requests_count()}"
+    return f"{requests_count()}\n"

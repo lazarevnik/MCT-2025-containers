@@ -43,3 +43,11 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
+
+      - name: Test PostgreSQL table init
+        run: |
+          table_exists=$(docker compose exec -T db psql -U test -d test -t -c \
+            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'ips');" | tr -d ' \n')
+          if [ "$table_exists" != "t" ]; then
+            exit 1
+          fi
