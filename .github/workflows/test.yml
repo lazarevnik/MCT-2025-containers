@@ -12,8 +12,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Start services
-        run: docker compose up -d
+        run: docker compose -f compose/docker-compose.prod.yml up -d
+
+      - name: Check cache service
+        run: |
+          docker compose -f compose/docker-compose.prod.yml exec -T app python - <<'PY'
+          import os
+          from pymemcache.client.base import Client
+          host = os.environ["MEMCACHED_HOST"]
+          port = int(os.environ["MEMCACHED_PORT"])
+          Client((host, port)).version()
+          print("Memcached reachable")
+          PY
+
+      - name: Verify DB init completed
+        run: |
+          docker compose -f compose/docker-compose.prod.yml exec -T db psql -U user -d app -tAc "SELECT to_regclass('public.pings') IS NOT NULL;" | grep -q 't'
+
+      - name: Test PostgreSQL connection
+        run: |
+          docker compose -f compose/docker-compose.prod.yml exec -T db pg_isready -U user -d app
 
       - name: Wait for web to be ready
         run: |
@@ -36,10 +63,9 @@ jobs:
           fi
           echo "Web test passed!"
 
-      - name: Test PostgreSQL connection
-        run: |
-          docker compose exec -T db pg_isready -U user -d app
+      - name: Run unit tests
+        run: pytest --cov=app --cov-report=term --cov-fail-under=60
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: docker compose -f compose/docker-compose.prod.yml logs

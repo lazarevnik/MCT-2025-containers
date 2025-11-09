@@ -107,3 +107,21 @@
 ## Дедлайн
 В этот раз поверю в силу автоматизации и сделаю один дедлайн: последний push в PR должен быть сделан не позднее **17:02 14.11.2025**.
 Если вы ну очень уж хотели что-то доделать и запушили какие-то дополнения после дедлайна, сделайте это отдельным коммитом: тогда будут шансы, что будет засчитана хоть часть задания.
+
+## Запуск
+
+```sh
+docker compose -f compose/docker-compose.prod.yml up --build -d
+docker compose -f compose/docker-compose.dev.yml up --build -d
+
+pytest --cov=app --cov-report=term --cov-fail-under=60
+
+docker compose -f compose/docker-compose.prod.yml down -v
+docker compose -f compose/docker-compose.dev.yml down -v
+```
+
+# Очистка
+```sh
+docker compose -f compose/docker-compose.prod.yml down -v
+docker compose -f compose/docker-compose.dev.yml down
+```
