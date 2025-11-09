@@ -15,6 +15,19 @@ jobs:
 
       - name: Start services
         run: docker compose up -d
+      
+      - name: Check initialization of DB
+        run: |
+          timeout=60
+          while ! docker compose ps --filter status=exited | tail -n 1 | grep -o  "init_db.*Exited (0)"; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Database initialization service failed to complete"
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "DB successfully initialized!"
 
       - name: Wait for web to be ready
         run: |
