@@ -14,6 +14,6 @@ RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 COPY . .
 
 # forwarding ports
-EXPOSE 8000
+EXPOSE 80
 
-ENTRYPOINT ["fastapi", "run", "main.py"]
+ENTRYPOINT ["fastapi", "run", "main.py", "--port", "80"]

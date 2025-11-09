@@ -8,15 +8,15 @@ services:
       # healthcheck from https://mariadb.com/docs/server/server-management/install-and-upgrade-mariadb/installing-mariadb/binary-packages/automated-mariadb-deployment-and-administration/docker-and-mariadb/using-healthcheck-sh
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       retries: 10
-      start_period: 10s
-      interval: 10s
-      timeout: 10s
+      start_period: 5s
+      interval: 5s
+      timeout: 3s
     ports:
       - "32001:3306"
     env_file:
       - ./credentials/db.env
     volumes:
-      - ./resources/:/docker-entrypoint-initdb.d/:ro # database dump
+      - ./resources:/docker-entrypoint-initdb.d/:ro # database dump
 
   app:
     container_name: app
@@ -30,4 +30,4 @@ services:
     env_file:
       - ./credentials/app.env
     ports:
-      - "8000:80"
+      - "80:80"
