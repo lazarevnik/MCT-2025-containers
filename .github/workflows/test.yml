@@ -15,6 +15,14 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Status of database script
+        run: |
+          if docker compose ps dbinit | grep -q "exited (0)"; then
+            echo "database script completed successfully"
+          else
+            echo "database script failed"
+            exit 1
+          fi
       - name: Wait for web to be ready
         run: |
           timeout=60
