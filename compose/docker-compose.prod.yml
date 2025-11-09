@@ -1,0 +1,64 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: app
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: app
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      MEMCACHED_HOST: cache
+      MEMCACHED_PORT: 11211
+    ports:
+      - "5000:5000"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      cache:
+        condition: service_started
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  db-init:
+    image: postgres:17-alpine
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: password
+    volumes:
+      - ../init.sql:/init.sql:ro
+    command: >
+      sh -c "psql -h db -U user -d app -f /init.sql"
+    restart: "no"
+
+  cache:
+    image: memcached:1.6-alpine
+    command: memcached -m 64 -o modern
+    healthcheck:
+      test: ["CMD-SHELL", "printf 'version\r\n' | nc 127.0.0.1 11211 | grep VERSION"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

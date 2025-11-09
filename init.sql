@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS pings (
+    id SERIAL PRIMARY KEY,
+    ip_address VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
