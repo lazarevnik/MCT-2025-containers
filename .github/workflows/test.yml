@@ -2,7 +2,7 @@ name: Docker Compose Test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches:
 
 jobs:
   test-compose:
@@ -36,18 +36,41 @@ jobs:
           fi
           echo "Web test passed!"
 
+      - name: Test visits after ping
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != "1" ]]; then
+            echo "Expected '1', got: $response"
+            exit 1
+          fi
+          echo "Web test passed!"
+
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
-
-      - name: Show logs on failure
-        if: failure()
-        run: docker compose logs
+          docker compose exec -T postgres pg_isready -U test -d test
 
       - name: Test PostgreSQL table init
         run: |
-          table_exists=$(docker compose exec -T db psql -U test -d test -t -c \
+          table_exists=$(docker compose exec -T postgres psql -U test -d test -t -c \
             "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'ips');" | tr -d ' \n')
           if [ "$table_exists" != "t" ]; then
             exit 1
           fi
+
+      - name: Install dependencies for tests
+        run: |
+          pip install -r web/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=./ --cov-report=xml --cov-fail-under=60
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs

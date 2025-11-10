@@ -1,8 +1,12 @@
 from flask import Flask, request
-from psql import requests_count, add_ip_request
+from web.psql import requests_count, add_ip_request
 
 
 app = Flask(__name__)
+
+@app.route("/", methods=["GET"])
+def default():
+    return "Test endpoint\n"
 
 @app.route("/ping", methods=["GET"])
 def ping():
