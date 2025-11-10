@@ -4,6 +4,10 @@ from psql import requests_count, add_ip_request
 
 app = Flask(__name__)
 
+@app.route("/", methods=["GET"])
+def default():
+    return "Test endpoint\n"
+
 @app.route("/ping", methods=["GET"])
 def ping():
     add_ip_request(request.remote_addr)
