@@ -1,9 +1,9 @@
 FROM python:3.11-alpine
 
-WORKDIR /web
+WORKDIR /tmp
 
-COPY ./web/* .
+COPY . .
 
-RUN pip install -r requirements.txt
+RUN pip install -r web/requirements.txt
 
-CMD ["python3", "main.py"]
+CMD ["python3", "-m", "web"]

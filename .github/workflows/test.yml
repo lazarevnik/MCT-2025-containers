@@ -57,13 +57,14 @@ jobs:
             exit 1
           fi
 
-      - name: Install dependencies
+      - name: Install dependencies for tests
         run: |
+          pip install -r web/requirements.txt
           pip install pytest pytest-cov
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=./ --cov-report=xml
+          pytest --cov=./ --cov-report=xml --cov-fail-under=60
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
