@@ -1,0 +1,68 @@
+services:
+  web:
+    build: .
+    container_name: web
+    ports:
+      - "5001:5000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: app
+      DB_USER: user
+      DB_PASS: password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_KEY: visits_count
+      REDIS_TTL: 0
+    depends_on:
+      db-init:
+          condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:15
+    container_name: db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  db-init:
+    image: postgres:15
+    container_name: db-init
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./init.sql:/sql/init.sql:ro
+      - ./db-init.sh:/scripts/db-init.sh:ro
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: app
+      DB_USER: user
+      DB_PASS: password
+    entrypoint: ["/bin/bash", "/scripts/db-init.sh"]
+    restart: "no"
+
+  redis:
+    image: redis:7
+    container_name: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

@@ -1,0 +1,75 @@
+services:
+  web-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: web-dev
+    ports:
+      - "5002:5001"
+    environment:
+      DB_HOST: db-dev
+      DB_PORT: 5432
+      DB_NAME: app
+      DB_USER: user
+      DB_PASS: password
+      REDIS_HOST: redis-dev
+      REDIS_PORT: 6380
+      REDIS_KEY: visits_count
+      REDIS_TTL: 0
+      APP_ENV: "dev"
+    depends_on:
+      db-init-dev:
+        condition: service_completed_successfully
+      db-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+
+  db-dev:
+    image: postgres:15
+    container_name: db-dev
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: app
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  db-init-dev:
+    image: postgres:15
+    container_name: db-init-dev
+    depends_on:
+      db-dev:
+        condition: service_healthy
+    volumes:
+      - ./init.sql:/sql/init.sql:ro
+      - ./db-init.sh:/scripts/db-init.sh:ro
+    environment:
+      DB_HOST: db-dev
+      DB_PORT: 5432
+      DB_NAME: app
+      DB_USER: user
+      DB_PASS: password
+    entrypoint: ["/bin/bash", "/scripts/db-init.sh"]
+    restart: "no"
+
+  redis-dev:
+    image: redis:7
+    container_name: redis-dev
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata-dev:

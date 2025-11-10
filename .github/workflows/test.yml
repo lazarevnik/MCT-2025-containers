@@ -13,12 +13,46 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Start services
-        run: docker compose up -d
+        run: docker compose -f docker-compose-prod.yml up -d
+
+      - name: Wait for Redis to be ready
+        run: |
+          timeout=60
+          while true; do
+            if docker compose -f docker-compose-prod.yml exec -T redis redis-cli ping >/dev/null 2>&1; then
+              echo "Redis is ready"
+              break
+            fi
+            timeout=$((timeout-1))
+            if [ "$timeout" -le 0 ]; then
+              echo "Redis failed to start"
+              docker compose -f docker-compose-prod.yml logs redis || true
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Wait for db-init to be finished successfully
+        run: |
+          timeout=60
+          while true; do
+            docker compose -f docker-compose-prod.yml ps --services --filter "status=exited" | grep -w db-init
+            if [ "$?" = "0" ]; then
+              echo "db-init finished"
+              exit 0
+            fi
+            timeout=$((timeout-1))
+            if [ "$timeout" -le 0 ]; then
+              echo "Failed to run db-init: timeout"
+              exit 1
+            fi
+            sleep 1
+          done
 
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:5001 >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
@@ -29,17 +63,30 @@ jobs:
 
       - name: Test web response
         run: |
-          response=$(curl -s http://localhost:5000/ping)
+          response=$(curl -s http://localhost:5001/ping)
           if [[ "$response" != "pong" ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
           fi
           echo "Web test passed!"
 
+      - name: Run tests
+        run: |
+          docker compose -f docker-compose-prod.yml exec -T web pytest --maxfail=1 --disable-warnings --cov=. --cov-fail-under=60 -q
+
+      - name: Test visits and cache
+        run: |
+          visits=$(curl -s http://localhost:5001/visits)
+          redis_visits=$(docker compose -f docker-compose-prod.yml exec -T redis redis-cli get visits_count)
+          if [ "$visits" != "$redis_visits" ]; then
+            echo "Cache inconsistency detected!"
+            exit 1
+          fi
+
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose -f docker-compose-prod.yml exec -T db pg_isready -U user -d app
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: docker compose -f docker-compose-prod.yml logs
