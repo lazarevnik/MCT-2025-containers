@@ -27,32 +27,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-  coverage:
-    image: xd009642/tarpaulin
-    container_name: pingvisits_coverage
-    working_dir: /app
-    volumes:
-      - .:/app
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://docker:docker@db:5432/pingvisits
-      REDIS_URL: redis://redis:6379
-      RUST_BACKTRACE: full
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp=unconfined
-    command: >
-      bash -c "
-        cargo clean &&
-        cargo tarpaulin --timeout 120 --out Html
-      "
   
   app:
     build: .

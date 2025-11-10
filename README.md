@@ -11,7 +11,7 @@ Building of lightweight :crab: Rust application image takes two steps:
 1. Build statically-linked `--release` target via `rust-musl-cross`.
 2. Copy the binary into `scratch`.
 
-The resulting image is about 11 MB in size.
+The resulting image is about 14 MB in size.
 
 ## Compose
 `docker-compose.yml` contains three services: `db` (PostgreSQL), `redis` for `/visits` endpoint caching `app` (`actix-web`-based API):

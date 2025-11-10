@@ -156,7 +156,7 @@ jobs:
       - name: Run migrations
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
-          psql $DATABASE_URL -c "create table if not exists visits (id serial primary key, ip_address text not null, created_at timestamp now());"
+          psql $DATABASE_URL -c "create table if not exists visits (id serial primary key, ip_address text not null, created_at timestamp default now());"
 
       - name: Run coverage check
         run: cargo tarpaulin --timeout 120 --fail-under 60 --out Html
