@@ -53,21 +53,21 @@ jobs:
         run: |
           response=$(curl -s http://localhost:5000/ping)
           response=$(curl -s http://localhost:5000/visits)
-          if [[ $response != 1 ]]; then
-            echo "Expected 1, got: $response"
+          if [[ $response != 2 ]]; then
+            echo "Expected 2, got: $response"
             exit 1
           fi
           response=$(curl -s http://localhost:5000/ping)
           response=$(curl -s http://localhost:5000/ping)
           response=$(curl -s http://localhost:5000/ping)
           response=$(curl -s http://localhost:5000/visits)
-          if [[ $response != 1 ]]; then
-            echo "Expected 1, got: $response"
+          if [[ $response != 2 ]]; then
+            echo "Expected 2, got: $response"
             exit 1
           fi
           sleep 31
-          if [[ $response != 4 ]]; then
-            echo "Expected 4, got: $response"
+          if [[ $response != 5 ]]; then
+            echo "Expected 5, got: $response"
             exit 1
           fi
 
