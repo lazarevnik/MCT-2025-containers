@@ -1,3 +1,8 @@
 fastapi
 uvicorn
 psycopg2-binary
+redis
+pytest
+pytest-cov
+requests
+httpx

@@ -5,14 +5,21 @@ services:
     ports:
       - "5001:5000"
     environment:
-      - DB_HOST=db
-      - DB_NAME=app
-      - DB_USER=user
-      - DB_PASS=password
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: app
+      DB_USER: user
+      DB_PASS: password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_KEY: visits_count
+      REDIS_TTL: 0
     depends_on:
       db-init:
           condition: service_completed_successfully
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   db:
@@ -47,6 +54,15 @@ services:
       DB_PASS: password
     entrypoint: ["/bin/bash", "/scripts/db-init.sh"]
     restart: "no"
+
+  redis:
+    image: redis:7
+    container_name: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   pgdata:

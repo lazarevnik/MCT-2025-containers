@@ -16,6 +16,23 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Wait for Redis to be ready
+        run: |
+          timeout=60
+          while true; do
+            if docker compose exec -T redis redis-cli ping >/dev/null 2>&1; then
+              echo "Redis is ready"
+              break
+            fi
+            timeout=$((timeout-1))
+            if [ "$timeout" -le 0 ]; then
+              echo "Redis failed to start"
+              docker compose logs redis || true
+              exit 1
+            fi
+            sleep 1
+          done
+
       - name: Wait for db-init to be finished successfully
         run: |
           timeout=60
@@ -62,6 +79,19 @@ jobs:
             exit 1
           fi
           echo "Web test passed!"
+
+      - name: Run tests
+        run: |
+          docker compose exec -T web pytest --maxfail=1 --disable-warnings --cov=. --cov-fail-under=60 -q
+
+      - name: Test visits and cache
+        run: |
+          visits=$(curl -s http://localhost:5001/visits)
+          redis_visits=$(docker compose exec -T redis redis-cli get visits_count)
+          if [ "$visits" != "$redis_visits" ]; then
+            echo "Cache inconsistency detected!"
+            exit 1
+          fi
 
       - name: Test PostgreSQL connection
         run: |
