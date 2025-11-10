@@ -94,3 +94,76 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
+
+  test-coverage:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U docker -d pingvisits"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@localhost:5432/${{ secrets.DB_NAME }}
+      REDIS_URL: redis://localhost:6379
+      RUST_BACKTRACE: 1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Wait for database
+        run: |
+          echo "Waiting for Postgres..."
+          for i in {1..15}; do
+            if pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}; then
+              echo "Postgres is ready"
+              break
+            fi
+            echo "Waiting..."
+            sleep 2
+          done
+
+      - name: Run migrations
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          psql $DATABASE_URL -c "create table if not exists visits (id serial primary key, ip_address text not null, created_at timestamp now());"
+
+      - name: Run coverage check
+        run: cargo tarpaulin --timeout 120 --fail-under 60 --out Html
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/tarpaulin-report.html
