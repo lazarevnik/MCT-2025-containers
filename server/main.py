@@ -15,6 +15,10 @@ def get_session():
         yield session
 
 
+@app.get("/")
+def root():
+    return "Hello, World!"
+
 @app.get("/ping")
 def ping(request: Request, session: Annotated[Session, Depends(get_session)]) -> str:
     visit = Visits(ip=request.client.host)
