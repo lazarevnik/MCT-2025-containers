@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  restbed-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./src:/app/src:ro
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src
+          target: /app/src
