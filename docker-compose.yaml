@@ -1,7 +1,7 @@
 name: simple-ping-visits
 
 services:
-  database:
+  db:
     image: postgres:18.0
     environment: &postgres_env
       POSTGRES_USER: user
@@ -15,7 +15,7 @@ services:
       dockerfile: ./server/Dockerfile
     environment:
       <<: *postgres_env
-      POSTGRES_HOST: database
+      POSTGRES_HOST: db
       POSTGRES_PORT: 5432
     restart: always
     ports:
