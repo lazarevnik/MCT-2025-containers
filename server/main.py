@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import FastAPI, Request, Depends
 from sqlalchemy import create_engine, select, func
 from sqlalchemy.orm import sessionmaker, Session
+from fastapi.responses import PlainTextResponse
 
 from .database import DATABASE_URL, Visits
 
@@ -20,15 +21,15 @@ def root():
     return "Hello, World!"
 
 @app.get("/ping")
-def ping(request: Request, session: Annotated[Session, Depends(get_session)]) -> str:
+def ping(request: Request, session: Annotated[Session, Depends(get_session)]) -> PlainTextResponse:
     visit = Visits(ip=request.client.host)
     session.add(visit)
     session.commit()
-    return "pong"
+    return PlainTextResponse("pong")
 
 
 @app.get("/visits")
 def visits(session: Annotated[Session, Depends(get_session)]) -> int:
     stmt = select(func.count()).select_from(Visits)
     result = session.execute(stmt).scalar_one()
-    return str(result)
+    return result
