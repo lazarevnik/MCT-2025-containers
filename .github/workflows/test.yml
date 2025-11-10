@@ -49,6 +49,28 @@ jobs:
           fi
           echo "Migration test passed!"
 
+      - name: Test nginx cache
+        run: |
+          response=$(curl -s http://localhost:5000/ping)
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ $response != 1 ]]; then
+            echo "Expected 1, got: $response"
+            exit 1
+          fi
+          response=$(curl -s http://localhost:5000/ping)
+          response=$(curl -s http://localhost:5000/ping)
+          response=$(curl -s http://localhost:5000/ping)
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ $response != 1 ]]; then
+            echo "Expected 1, got: $response"
+            exit 1
+          fi
+          sleep 31
+          if [[ $response != 4 ]]; then
+            echo "Expected 4, got: $response"
+            exit 1
+          fi
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
