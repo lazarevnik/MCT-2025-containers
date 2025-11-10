@@ -3,6 +3,7 @@ name: Docker Compose Test
 on:
   pull_request:
     branches: [ main ]
+on: push
 
 jobs:
   test-compose:
@@ -14,6 +15,32 @@ jobs:
 
       - name: Start services
         run: docker compose up -d
+
+      - name: Wait for db-init to be finished successfully
+        run: |
+          timeout=60
+          while true; do
+            status=$(docker compose ps --services --filter "status=exited" | grep -w db-init || true)
+            if [ -n "$status" ]; then
+              cid=$(docker compose ps -q db-init)
+              exit_code=$(docker inspect "$cid" --format='{{.State.ExitCode}}' 2>/dev/null || echo "unknown")
+              if [ "$exit_code" = "0" ]; then
+                echo "db-init finished successfully (exit 0)"
+                break
+              else
+                echo "db-init finished with exit code: $exit_code"
+                docker compose logs db-init || true
+                exit 1
+              fi
+            fi
+            timeout=$((timeout-1))
+            if [ "$timeout" -le 0 ]; then
+              echo "Timeout waiting for db-init to finish"
+              docker compose logs db-init || true
+              exit 1
+            fi
+            sleep 1
+          done
 
       - name: Wait for web to be ready
         run: |

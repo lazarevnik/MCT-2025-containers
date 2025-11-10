@@ -10,6 +10,8 @@ services:
       - DB_USER=user
       - DB_PASS=password
     depends_on:
+      db-init:
+          condition: service_completed_successfully
       db:
         condition: service_healthy
 
@@ -27,6 +29,24 @@ services:
       interval: 5s
       timeout: 3s
       retries: 3
+
+  db-init:
+    image: postgres:15
+    container_name: db-init
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./init.sql:/sql/init.sql:ro
+      - ./db-init.sh:/scripts/db-init.sh:ro
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: app
+      DB_USER: user
+      DB_PASS: password
+    entrypoint: ["/bin/bash", "/scripts/db-init.sh"]
+    restart: "no"
 
 volumes:
   pgdata:

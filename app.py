@@ -17,22 +17,6 @@ def get_conn():
         password=DB_PASS
     )
 
-def init_db():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS visits (
-            id SERIAL PRIMARY KEY,
-            ip VARCHAR(64),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
-
-init_db()
-
 @app.get("/ping")
 async def ping(request: Request):
     ip = request.client.host
