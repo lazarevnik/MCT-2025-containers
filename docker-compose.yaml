@@ -7,16 +7,35 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: MCT
+    healthcheck:
+      test: pg_isready --username=$${POSTGRES_USER} --dbname=$${POSTGRES_DB}
+      interval: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 0s
     restart: always
+
+  migration:
+    build:
+      context: .
+      dockerfile: ./migration/Dockerfile
+    environment: &postgres_db_env
+      <<: *postgres_env
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
 
   server:
     build:
       context: .
       dockerfile: ./server/Dockerfile
-    environment:
-      <<: *postgres_env
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+    environment: *postgres_db_env
+    depends_on:
+      migration:
+        condition: service_completed_successfully
     restart: always
     ports:
       - "5000:8000"

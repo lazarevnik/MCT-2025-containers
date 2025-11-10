@@ -40,6 +40,15 @@ jobs:
         run: |
           docker compose exec -T db pg_isready -U user -d app
 
+      - name: Test migrations to be completed successfully
+        run: |
+          exit_code=$(docker inspect simple-ping-visits-migration-1 --format='{{.State.ExitCode}}')
+          if [[ $exit_code != 0 ]]; then
+            echo "Expected 0, got: $exit_code"
+            exit 1
+          fi
+          echo "Migration test passed!"
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs

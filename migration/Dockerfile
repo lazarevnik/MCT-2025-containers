@@ -12,6 +12,6 @@ COPY pyproject.toml .
 COPY uv.lock .
 RUN uv sync --frozen
 
-COPY ./server .
+COPY ./migration .
 
-CMD ["fastapi", "run", "main.py"]
+CMD ["alembic", "upgrade", "head"]
