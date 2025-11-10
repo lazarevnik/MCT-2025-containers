@@ -1,24 +1,25 @@
 from fastapi import FastAPI, Request
 from sqlalchemy import create_engine, NullPool
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
-from model import Visit
+from app.model import Visit
+from app.config import settings
 
 engine = create_engine(
-    "0.0.0.0",
+    settings.database_url,
     poolclass=NullPool,
     echo=True
 )
 session = sessionmaker(engine)
-app = FastAPI()
+api = FastAPI()
 
 
-@app.get("/")
+@api.get("/")
 def root():
     return {"message": "root"}
 
 
-@app.get("/ping")
+@api.get("/ping")
 def ping(req: Request) -> str:
     with session() as db:
         address = req.client.host
@@ -39,7 +40,7 @@ def ping(req: Request) -> str:
     return "pong"
 
 
-@app.get("/visits")
+@api.get("/visits")
 def visits(req: Request) -> int:
     with session() as db:
         address = req.client.host

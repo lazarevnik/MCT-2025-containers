@@ -1,0 +1,40 @@
+x-app-conf: &app-conf
+  build: .
+  env_file:
+    - .env
+  environment:
+    DATABASE_HOST: db
+
+services:
+  app:
+    <<: *app-conf
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    depends_on:
+      db:
+        condition: service_healthy
+      alembic:
+        condition: service_completed_successfully
+    command: python3 -m app
+
+  alembic:
+    <<: *app-conf
+    depends_on:
+      db:
+        condition: service_healthy
+    command: bash -c "alembic upgrade head"
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: "${DATABASE_USER}"
+      POSTGRES_PASSWORD: "${DATABASE_PASSWORD}"
+      POSTGRES_DB: "${DATABASE_NAME}"
+      PGUSER: "${DATABASE_USER}"
+    ports:
+      - "${DATABASE_PORT}:${DATABASE_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "${DATABASE_NAME}"]
+      interval: 1s
+      timeout: 1s
+      retries: 10

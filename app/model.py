@@ -17,11 +17,13 @@ class Base(DeclarativeBase):
 
 class Visit(Base):
     __tablename__ = "visits"
-    __table_args__ = (UniqueConstraint("address", "port"))
+    __table_args__ = (
+        UniqueConstraint("address", "port"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     address = Column(String(45), nullable=False)  # up to IPv6 length
-    port = Column(SmallInteger, nullable=False)
+    port = Column(Integer, nullable=False)
     count = Column(BigInteger, nullable=False, server_default="0")
 
     def __repr__(self):
