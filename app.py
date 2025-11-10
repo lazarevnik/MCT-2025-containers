@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 import os
 import psycopg2
 import redis
@@ -36,7 +37,11 @@ def get_redis_client():
     except Exception:
         return None
 
-@app.get("/ping")
+@app.get("/", response_class=PlainTextResponse)
+def root():
+    return "Web server is running!"
+
+@app.get("/ping", response_class=PlainTextResponse)
 async def ping(request: Request):
     ip = request.client.host if request.client else "unknown"
 
@@ -67,7 +72,7 @@ async def ping(request: Request):
 
     return "pong"
 
-@app.get("/visits")
+@app.get("/visits", response_class=PlainTextResponse)
 async def visits():
     # try redis first
     r = get_redis_client()
