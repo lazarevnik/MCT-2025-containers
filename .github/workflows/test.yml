@@ -66,6 +66,7 @@ jobs:
             exit 1
           fi
           sleep 31
+          response=$(curl -s http://localhost:5000/visits)
           if [[ $response != 5 ]]; then
             echo "Expected 5, got: $response"
             exit 1
