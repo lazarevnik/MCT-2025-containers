@@ -72,8 +72,12 @@ jobs:
             exit 1
           fi
 
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: 3.12
       - name: Run tests
-        run: pytest ./server/test.py
+        run: uv run --frozen pytest ./server/test.py
 
       - name: Show logs on failure
         if: failure()
