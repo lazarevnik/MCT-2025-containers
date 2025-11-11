@@ -75,7 +75,7 @@ jobs:
       - name: Test PostgreSQL connection
         run: |
           coverage=$(sudo docker compose exec -T server uv run pytest --cov=. ./test.py | grep TOTAL | grep -oP "(\d+(\.\d+)?(?=%))")
-          if [[ $coverage < 60 ]]; then
+          if [[ $coverage != "100" ]]; then
             echo "Expected coverage to be more than 60, got: $coverage"
             exit 1
           fi
