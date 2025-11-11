@@ -1,0 +1,36 @@
+version: '3.7'
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  init-db:
+    image: postgres:16
+    depends_on: [db]
+    environment: {PGPASSWORD: user}
+    command: >
+      sh -c "
+        while ! pg_isready -h db -U user -d app; do sleep 1; done &&
+        psql -h db -U user -d app -f /init.sql
+      "
+    volumes: ['./init.sql:/init.sql:ro']
+
+  web:
+    build: .
+    ports: ['5000:5000']
+    environment:
+      DB_HOST: db
+      DB_NAME: app
+      DB_USER: user
+      DB_PASSWORD: user
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata: {}
