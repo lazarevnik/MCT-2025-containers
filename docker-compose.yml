@@ -1,6 +1,6 @@
 x-app-conf: &app-conf
   build:
-    context: app
+    context: .
     network: host
   env_file:
     - .env
