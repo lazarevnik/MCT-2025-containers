@@ -9,4 +9,5 @@ dependencies = [
     "sqlalchemy (>=2.0.44, <3)",
     "alembic (>=1.17.1, <2)",
     "pytest (>=9.0.0, <10)",
+    "pytest-cov (>=7.0.0, <8)",
 ]

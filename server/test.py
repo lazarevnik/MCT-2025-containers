@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from main import app
+from .main import app
 
 client = TestClient(app)
 
@@ -11,7 +11,7 @@ def app_client():
 def test_root(app_client):
     response = app_client.get("/")
     assert response.status_code == 200
-    assert response.text == "Hello, World!"
+    assert response.text == '"Hello, World!"'
 
 def test_ping(app_client):
     response = app_client.get("/ping")

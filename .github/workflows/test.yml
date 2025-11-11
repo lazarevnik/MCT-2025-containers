@@ -72,12 +72,13 @@ jobs:
             exit 1
           fi
 
-      - name: Install the latest version of uv and set the python version
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: 3.12
-      - name: Run tests
-        run: uv run --frozen pytest ./server/test.py
+      - name: Test PostgreSQL connection
+        run: |
+          coverage=$(sudo docker compose exec -T server uv run pytest --cov=. ./test.py | grep TOTAL | grep -oP "(\d+(\.\d+)?(?=%))")
+          if [[ $coverage < 60 ]]; then
+            echo "Expected coverage to be more than 60, got: $coverage"
+            exit 1
+          fi
 
       - name: Show logs on failure
         if: failure()
