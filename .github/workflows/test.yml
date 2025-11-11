@@ -40,6 +40,21 @@ jobs:
         run: |
           docker compose exec -T db pg_isready -U user -d app
 
+      - name: Verify DB initialization (init.sql completed)
+        run: |
+          docker compose exec -T db psql -U user -d app -c '\dt' | grep -q visits || {
+            echo "init script failed"
+            exit 1
+          }
+          echo "init script success"
+
+      - name: Run tests and check coverage >= 60%
+        run: |
+          docker compose exec web pip install coverage
+          docker compose exec web coverage run tests.py
+          docker compose exec web coverage report --fail-under=60
+          echo "Tests passed, coverage >= 60%"
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
