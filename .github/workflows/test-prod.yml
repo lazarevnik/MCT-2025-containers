@@ -1,4 +1,4 @@
-name: Docker Compose Test
+name: Docker Compose Test PROD
 
 on:
   pull_request:
@@ -79,50 +79,6 @@ jobs:
             echo "Expected coverage to be more than 60, got: $coverage"
             exit 1
           fi
-
-      - name: Show logs on failure
-        if: failure()
-        run: docker compose logs
-
-  test-compose-dev:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Start services
-        run: docker compose -f docker-compose.dev.yaml up -d
-
-      - name: Wait for web to be ready
-        run: |
-          timeout=60
-          while !  docker compose exec server curl -f http://localhost:8000 >/dev/null 2>&1; do
-            ((timeout--))
-            if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
-              exit 1
-            fi
-            sleep 1
-          done
-
-      - name: Test web response ping
-        run: |
-          response=$(docker compose exec server curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
-            exit 1
-          fi
-          echo "Web test ping passed!"
-
-      - name: Test web response visits
-        run: |
-          response=$(docker compose exec server curl -s http://localhost:5000/visits)
-          if [[ $response != -1 ]]; then
-            echo "Expected -1, got: $response"
-            exit 1
-          fi
-          echo "Web test visits passed!"
 
       - name: Show logs on failure
         if: failure()
