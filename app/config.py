@@ -1,10 +1,16 @@
+from enum import Enum
+
 from pydantic_settings import BaseSettings
 
 
-class Settings(BaseSettings):
-    """Application settings"""
+class Modes(str, Enum):
+    DEV = "dev"
+    PROD = "prod"
 
+
+class Settings(BaseSettings, use_enum_values=True):
     APP_PORT: str
+    APP_MODE: Modes
 
     DATABASE_DRIVER: str
     DATABASE_HOST: str

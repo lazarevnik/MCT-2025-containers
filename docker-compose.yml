@@ -1,8 +1,11 @@
 x-app-conf: &app-conf
-  build: .
+  build:
+    context: app
+    network: host
   env_file:
     - .env
   environment:
+    APP_MODE: prod
     DATABASE_HOST: db
 
 services:
