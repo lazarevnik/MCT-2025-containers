@@ -56,10 +56,22 @@ jobs:
         run: |
           docker compose down && docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait
 
+      - name: Wait for web to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
       - name: Test web response
         run: |
           response=$(curl -s http://localhost:5000/visits)
-          if [[ "$response" != -1 ]]; then
+          if [[ "$response" != "-1" ]]; then
             echo "Expected '-1', got: $response"
             exit 1
           fi
