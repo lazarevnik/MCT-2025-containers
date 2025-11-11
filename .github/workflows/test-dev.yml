@@ -29,7 +29,7 @@ jobs:
 
       - name: Test web response ping
         run: |
-          response=$(docker compose exec server curl -s http://localhost:5000/ping)
+          response=$(docker compose -f docker-compose.dev.yaml exec server curl -s http://localhost:5000/ping)
           if [[ "$response" != "pong" ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
@@ -38,7 +38,7 @@ jobs:
 
       - name: Test web response visits
         run: |
-          response=$(docker compose exec server curl -s http://localhost:5000/visits)
+          response=$(docker compose -f docker-compose.dev.yaml exec server curl -s http://localhost:5000/visits)
           if [[ $response != -1 ]]; then
             echo "Expected -1, got: $response"
             exit 1
