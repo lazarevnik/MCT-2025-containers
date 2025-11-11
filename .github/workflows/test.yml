@@ -49,7 +49,7 @@ jobs:
           echo "Environment test passed!"
           
       - name: Stop services(Dev environment)
-        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 
       - name: Start services(Prod environment)
         run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
@@ -81,7 +81,7 @@ jobs:
           echo "Ping test passed!"
 
       - name: Stop services(Prod environment)
-        run: docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml down
         
       - name: Show logs on failure
         if: failure()
