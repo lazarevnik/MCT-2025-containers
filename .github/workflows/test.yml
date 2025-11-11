@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Start services
-        run: docker compose up -d
+        run: docker compose up -d --wait
 
       - name: Wait for web to be ready
         run: |
@@ -30,7 +30,7 @@ jobs:
       - name: Test web response
         run: |
           response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
+          if [[ "$response" != '"pong"' ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
           fi
@@ -39,6 +39,43 @@ jobs:
       - name: Test PostgreSQL connection
         run: |
           docker compose exec -T db pg_isready -U user -d app
+
+      - name: Test table exists
+        run: |
+          docker compose exec -T db psql -U postgres -d app -c "\dt visits" | grep -q "visits" && true || false
+
+      - name: Test alembic exited
+        run: |
+          docker compose ps -a alembic | grep "Exited (0)" && true || false
+
+      - name: Run tests
+        run: |
+          docker compose run -T app bash -c "pytest --cov"
+
+      - name: Launch dev
+        run: |
+          docker compose down && docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait
+
+      - name: Wait for web to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test web response
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != "-1" ]]; then
+            echo "Expected '-1', got: $response"
+            exit 1
+          fi
+          echo "Web test passed!"
 
       - name: Show logs on failure
         if: failure()
