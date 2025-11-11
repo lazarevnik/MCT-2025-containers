@@ -1,6 +1,7 @@
 name: Docker Compose Test
 
 on:
+    workflow_dispatch:
     pull_request:
         branches: [ main ]
 
@@ -8,109 +9,111 @@ jobs:
     test-compose:
         runs-on: ubuntu-latest
 
-    steps:
-        - name: Checkout code
-            uses: actions/checkout@v5
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
 
-        - name: Run tests
-            uses: actions/setup-python@v6
-            with:
-                python-version: "3.15"
-            run: |
-                python -m pip install --upgrade pip
-                pip install --no-cache-dir pytest pytest-cov
-                pip install --no-cache-dir -r requirements.txt
-                pytest tests.py --maxfail=1 -q
+            - name: Setup python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.15"
+                  
+            - name: Run tests
+              run: |
+                    python -m pip install --upgrade pip
+                    pip install --no-cache-dir pytest pytest-cov
+                    pip install --no-cache-dir -r requirements.txt
+                    pytest tests.py --maxfail=1 -q
 
-        - name: Create test .env
-            run: |
-                cat > .env <<'EOF'
-                POSTGRES_USER=user
-                POSTGRES_PASSWORD=pass
-                POSTGRES_DB=db
-                EOF
+            - name: Create test .env
+              run: |
+                    cat > .env <<'EOF'
+                    POSTGRES_USER=user
+                    POSTGRES_PASSWORD=pass
+                    POSTGRES_DB=db
+                    EOF
 
-        - name: Start services (DEV)
-            run: |
-                docker compose -f docker-compose-dev.yaml up -d --build
+            - name: Start services (DEV)
+              run: |
+                    docker compose -f docker-compose-dev.yaml up -d --build
 
-        - name: Wait for service (DEV)
-            run: |
-                timeout=60
-                while ! curl -f http://localhost:80/ping >/dev/null 2>&1; do
-                ((timeout--))
-                if [ $timeout -eq 0 ]; then
-                    echo "Web service failed to start"
-                    exit 1
-                fi
-                sleep 1
-                done
+            - name: Wait for service (DEV)
+              run: |
+                    timeout=60
+                    while ! curl -f http://localhost:80/ping >/dev/null 2>&1; do
+                    ((timeout--))
+                    if [ $timeout -eq 0 ]; then
+                        echo "Web service failed to start"
+                        exit 1
+                    fi
+                    sleep 1
+                    done
 
-        - name: Test web response (DEV)
-            run: |
-                response=$(curl -s http://localhost:80/ping)
-                if [[ "$response" != "pong" ]]; then
-                    echo "Expected 'pong', got: $response"
-                    exit 1
-                fi
-                response=$(curl -s http://localhost:80/visits)
-                if [[ "$response" != "-1" ]]; then
-                    echo "Expected '-1', got: $response"
-                    exit 1
-                fi
-                echo "Web test passed!"
+            - name: Test web response (DEV)
+              run: |
+                    response=$(curl -s http://localhost:80/ping)
+                    if [[ "$response" != "pong" ]]; then
+                        echo "Expected 'pong', got: $response"
+                        exit 1
+                    fi
+                    response=$(curl -s http://localhost:80/visits)
+                    if [[ "$response" != "-1" ]]; then
+                        echo "Expected '-1', got: $response"
+                        exit 1
+                    fi
+                    echo "Web test passed!"
 
-        - name: Shutdown services (DEV)
-            run: |
-                docker compose -f docker-compose-dev.yaml down -v
+            - name: Shutdown services (DEV)
+              run: |
+                    docker compose -f docker-compose-dev.yaml down -v
 
-        - name: Start services (PROD)
-            run: |
-                docker compose -f docker-compose-prod.yaml up -d --build
+            - name: Start services (PROD)
+              run: |
+                    docker compose -f docker-compose-prod.yaml up -d --build
 
-        - name: Wait for service (PROD)
-            run: |
-                timeout=60
-                while ! curl -f http://localhost:80/ping >/dev/null 2>&1; do
-                ((timeout--))
-                if [ $timeout -eq 0 ]; then
-                    echo "Web service failed to start"
-                    exit 1
-                fi
-                sleep 1
-                done
+            - name: Wait for service (PROD)
+              run: |
+                    timeout=60
+                    while ! curl -f http://localhost:80/ping >/dev/null 2>&1; do
+                    ((timeout--))
+                    if [ $timeout -eq 0 ]; then
+                        echo "Web service failed to start"
+                        exit 1
+                    fi
+                    sleep 1
+                    done
 
-        - name: Test web response (PROD)
-            run: |
-                response=$(curl -s http://localhost:80/ping)
-                if [[ "$response" != "pong" ]]; then
-                    echo "Expected 'pong', got: $response"
-                    exit 1
-                fi
-                response=$(curl -s http://localhost:80/visits)
-                if [[ "$response" != "1" ]]; then
-                    echo "Expected '1', got: $response"
-                    exit 1
-                fi
-                echo "Web test passed!"
+            - name: Test web response (PROD)
+              run: |
+                    response=$(curl -s http://localhost:80/ping)
+                    if [[ "$response" != "pong" ]]; then
+                        echo "Expected 'pong', got: $response"
+                        exit 1
+                    fi
+                    response=$(curl -s http://localhost:80/visits)
+                    if [[ "$response" != "1" ]]; then
+                        echo "Expected '1', got: $response"
+                        exit 1
+                    fi
+                    echo "Web test passed!"
 
-        - name: Test PostgreSQL connection (PROD)
-            run: |
-                docker compose -f docker-compose-prod.yaml exec -T database pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            - name: Test PostgreSQL connection (PROD)
+              run: |
+                    docker compose -f docker-compose-prod.yaml exec -T database pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
-        - name: Verify database initialization (PROD)
-            run: |
-                result=$(docker compose -f docker-compose-prod.yaml exec -T database \
-                    psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT to_regclass('public.visits');" | tr -d '[:space:]')
-                if [[ "$result" != "visits" ]]; then
-                    echo "initialization failed"
-                    exit 1
-                fi
+            - name: Verify database initialization (PROD)
+              run: |
+                    result=$(docker compose -f docker-compose-prod.yaml exec -T database \
+                        psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT to_regclass('public.visits');" | tr -d '[:space:]')
+                    if [[ "$result" != "visits" ]]; then
+                        echo "initialization failed"
+                        exit 1
+                    fi
 
-        - name: Shutdown services (PROD)
-            run: |
-                docker compose -f docker-compose-prod.yaml down -v
+            - name: Shutdown services (PROD)
+              run: |
+                    docker compose -f docker-compose-prod.yaml down -v
 
-        - name: Show logs on failure
-            if: failure()
-            run: docker compose -f docker-compose-prod.yaml logs
+            - name: Show logs on failure
+              if: failure()
+              run: docker compose -f docker-compose-prod.yaml logs
