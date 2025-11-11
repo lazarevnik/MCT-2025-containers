@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 import psycopg2
 import os
 
@@ -19,7 +20,7 @@ async def pong(request: Request):
     conn.commit()
     cursor.close()
     conn.close()
-    return 'pong'
+    return PlainTextResponse(content="pong")
 
 @app.get("/visits")
 async def visits():
