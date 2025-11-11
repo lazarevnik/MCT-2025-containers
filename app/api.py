@@ -3,6 +3,10 @@ from app.core import ping, visits
 
 api = FastAPI()
 
+@api.get("/")
+def api_root() -> str:
+    return "alive"
+
 
 @api.get("/ping")
 def api_ping(req: Request) -> str:
