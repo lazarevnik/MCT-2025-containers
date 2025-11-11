@@ -24,6 +24,8 @@ async def pong(request: Request):
 
 @app.get("/visits")
 async def visits():
+    if os.getenv("ENVIRONMENT") == "Dev":
+        return -1
     conn = database_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM visits;")

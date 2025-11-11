@@ -1,0 +1,18 @@
+services:
+  script:
+    build:
+      context: .
+      dockerfile: Dockerfile.prog
+    restart: unless-stopped
+    ports:
+      - 5000:8000
+    environment:
+      ENVIRONMENT: Dev
+      POSTGRES_HOST: db
+      POSTGRES_DB: prog
+      POSTGRES_USER: proguser
+      POSTGRES_PASSWORD: password
+      POSTGRES_PORT: 5432
+    depends_on:
+      dbinit:
+        condition: service_completed_successfully
