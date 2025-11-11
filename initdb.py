@@ -15,6 +15,7 @@ def init_db():
                     ip_address VARCHAR(45) NOT NULL
                 )
             """)
+    conn.commit()
 
     cursor.close()
     conn.close()

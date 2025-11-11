@@ -42,7 +42,8 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_PORT: 5432
     depends_on:
-      - dbinit
+      dbinit:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:
