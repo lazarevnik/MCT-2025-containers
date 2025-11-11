@@ -15,19 +15,6 @@ jobs:
       - name: Start services(Dev environment)
         run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
-      - name: Wait for database_init(Dev environment)
-        run: |
-          timeout=60
-          while ! docker compose -f docker-compose.yml -f docker-compose.dev.yml ps dbinit | grep -q "exited (0)"; do
-            sleep 1
-            timeout=$((timeout-1))
-            if [ $timeout -eq 0 ]; then
-              echo "dbinit failed to complete"
-              exit 1
-            fi
-          done
-          echo "dbinit completed successfully"
-
       - name: Test PostgreSQL connection and table creation(Dev environment)
         run: |
           docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T db psql -U proguser -d prog -c "\dt" | grep visits
@@ -66,19 +53,6 @@ jobs:
 
       - name: Start services(Prod environment)
         run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-      - name: Wait for database_init(Prod environment)
-        run: |
-          timeout=60
-          while ! docker compose -f docker-compose.yml -f docker-compose.prod.yml ps dbinit | grep -q "exited (0)"; do
-            sleep 1
-            timeout=$((timeout-1))
-            if [ $timeout -eq 0 ]; then
-              echo "dbinit failed to complete"
-              exit 1
-            fi
-          done
-          echo "dbinit completed successfully"
 
       - name: Test PostgreSQL connection and table creation(Prod environment)
         run: |
