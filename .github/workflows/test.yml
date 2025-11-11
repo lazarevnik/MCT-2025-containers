@@ -91,7 +91,7 @@ jobs:
                         exit 1
                     fi
                     response=$(curl -s http://localhost:80/visits)
-                    if [[ "$response" -gt "0" ]]; then
+                    if [[ "$response" -le "0" ]]; then
                         echo "Expected greater than zero, got: $response"
                         exit 1
                     fi
