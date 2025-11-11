@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: prog
+      POSTGRES_USER: proguser
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proguser -d prog"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  dbinit:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: prog
+      POSTGRES_USER: proguser
+      POSTGRES_PASSWORD: password
+      POSTGRES_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

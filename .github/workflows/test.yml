@@ -12,10 +12,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose up -d
+      - name: Start services(Dev environment)
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
-      - name: Wait for web to be ready
+      - name: Test PostgreSQL connection and table creation(Dev environment)
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T db psql -U proguser -d prog -c "\dt" | grep visits
+          echo "Database table verified"
+
+      - name: Wait for web to be ready(Dev environment)
         run: |
           timeout=60
           while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
@@ -27,19 +32,57 @@ jobs:
             sleep 1
           done
 
-      - name: Test web response
+      - name: Test web response(Dev environment)
         run: |
           response=$(curl -s http://localhost:5000/ping)
           if [[ "$response" != "pong" ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
           fi
-          echo "Web test passed!"
+          echo "Ping test passed!"
+          
+          visits=$(curl -s http://localhost:5000/visits)
+          if [[ "$visits" != "-1" ]]; then
+            echo "Environment test failed: expected -1, got $visits"
+            exit 1
+          fi
+          echo "Environment test passed!"
+          
+      - name: Stop services(Dev environment)
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 
-      - name: Test PostgreSQL connection
+      - name: Start services(Prod environment)
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+      - name: Test PostgreSQL connection and table creation(Prod environment)
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T db psql -U proguser -d prog -c "\dt" | grep visits
+          echo "Database table verified"
 
+      - name: Wait for web to be ready(Prod environment)
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test web response(Prod environment)
+        run: |
+          response=$(curl -s http://localhost:5000/ping)
+          if [[ "$response" != "pong" ]]; then
+            echo "Expected 'pong', got: $response"
+            exit 1
+          fi
+          echo "Ping test passed!"
+
+      - name: Stop services(Prod environment)
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+        
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
