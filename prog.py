@@ -30,3 +30,7 @@ async def visits():
     cursor.close()
     conn.close()
     return count
+
+@app.get("/")
+async def visits():
+    return "GG WP"
