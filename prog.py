@@ -19,7 +19,7 @@ async def pong(request: Request):
     conn.commit()
     cursor.close()
     conn.close()
-    return "pong"
+    return 'pong'
 
 @app.get("/visits")
 async def visits():
