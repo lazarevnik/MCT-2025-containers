@@ -104,7 +104,7 @@ jobs:
             - name: Verify database initialization (PROD)
               run: |
                     result=$(docker compose -f docker-compose-prod.yaml exec -T database \
-                        psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT to_regclass('public.visits');" | tr -d '[:space:]')
+                        psql postgresql://user:pass@database:5432/db -tAc "SELECT to_regclass('public.visits');" | tr -d '[:space:]')
                     if [[ "$result" != "visits" ]]; then
                         echo "initialization failed"
                         exit 1
