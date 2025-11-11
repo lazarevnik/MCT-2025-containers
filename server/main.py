@@ -1,3 +1,4 @@
+import os
 from typing import Annotated
 
 from fastapi import FastAPI, Request, Depends
@@ -5,15 +6,20 @@ from sqlalchemy import create_engine, select, func
 from sqlalchemy.orm import sessionmaker, Session
 from fastapi.responses import PlainTextResponse
 
-from .database import DATABASE_URL, Visits
+IS_DEV = os.getenv("DEV", "False").lower() == "true"
+if not IS_DEV:
+    from .database import DATABASE_URL, Visits
 
 app = FastAPI()
 
 def get_session():
-    engine = create_engine(DATABASE_URL)
-    session_maker = sessionmaker(bind=engine)
-    with session_maker() as session:
-        yield session
+    if IS_DEV:
+        yield 1
+    else:
+        engine = create_engine(DATABASE_URL)
+        session_maker = sessionmaker(bind=engine)
+        with session_maker() as session:
+            yield session
 
 
 @app.get("/")
@@ -22,14 +28,18 @@ def root():
 
 @app.get("/ping")
 def ping(request: Request, session: Annotated[Session, Depends(get_session)]) -> PlainTextResponse:
-    visit = Visits(ip=request.client.host)
-    session.add(visit)
-    session.commit()
+    if not IS_DEV:
+        visit = Visits(ip=request.client.host)
+        session.add(visit)
+        session.commit()
     return PlainTextResponse("pong")
 
 
 @app.get("/visits")
 def visits(session: Annotated[Session, Depends(get_session)]) -> int:
-    stmt = select(func.count()).select_from(Visits)
-    result = session.execute(stmt).scalar_one()
+    if IS_DEV:
+        result = -1
+    else:
+        stmt = select(func.count()).select_from(Visits)
+        result = session.execute(stmt).scalar_one()
     return result

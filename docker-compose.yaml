@@ -29,14 +29,15 @@ services:
     restart: on-failure
 
   server:
-    build:
-      context: .
-      dockerfile: ./server/Dockerfile
-    environment: *postgres_db_env
+    extends:
+      file: docker-compose.dev.yaml
+      service: server
+    environment:
+      <<: *postgres_db_env
+      DEV: false
     depends_on:
       migration:
         condition: service_completed_successfully
-    restart: always
 
   nginx:
     image: nginx:1.29.3

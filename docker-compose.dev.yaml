@@ -1,0 +1,10 @@
+name: dev-simple-ping-visits
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+    environment:
+      DEV: true
+    restart: always
