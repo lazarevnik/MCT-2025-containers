@@ -6,6 +6,10 @@ app = Flask(__name__)
 
 password = "mysecretpassword"
 
+@app.route('/')
+def start():
+    return 'use /ping or /visits'
+
 @app.route('/ping')
 def ping():
     db_host = environ.get('DB_HOST')
