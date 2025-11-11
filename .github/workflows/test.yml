@@ -104,22 +104,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+      - name: Start application
+        run: docker compose -f docker-compose.dev.yml up -d
 
-      - name: Wait for web to be ready
-        run: |
-          timeout=60
-          while ! curl -f http://localhost:8080 >/dev/null 2>&1; do
-            ((timeout--))
-            if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
-              exit 1
-            fi
-            sleep 1
-          done
-
-      - name: Test /visits in dev mode
+      - name: Test /visits in dev mode response
         run: |
           response=$(curl -s http://localhost:8080/visits)
           if [[ "$response" != "-1" ]]; then
@@ -127,6 +115,15 @@ jobs:
             exit 1
           fi
           echo "Dev mode test passed"
+
+      - name: Test /ping response
+        run: |
+          response=$(curl -s http://localhost:8080/ping)
+          if [[ "$response" != "pong" ]]; then
+            echo "Expected 'pong', got: $response"
+            exit 1
+          fi
+          echo "Web test passed!"
 
       - name: Show logs on failure
         if: failure()

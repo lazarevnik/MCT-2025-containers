@@ -106,10 +106,6 @@ pub async fn ping(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse 
 }
 
 pub async fn visits(state: web::Data<AppState>) -> HttpResponse {
-    if env::var("DEV").is_ok() {
-        return HttpResponse::Ok().body("-1");
-    }
-
     if let Some(cached_count) = state.redis_get().await {
         HttpResponse::Ok().body(cached_count.to_string())
     } else {
@@ -135,6 +131,31 @@ pub async fn run_server() -> anyhow::Result<()> {
             .route("/", web::get().to(index))
             .route("/visits", web::get().to(visits))
             .route("/ping", web::get().to(ping))
+    })
+    .bind(addr)?
+    .run()
+    .await?)
+}
+
+pub async fn run_dev_server() -> anyhow::Result<()> {
+    const PORT: u16 = 8080;
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], PORT));
+    println!("Dev HTTP server listens on {addr}");
+
+    Ok(HttpServer::new(move || {
+        App::new()
+            .route(
+                "/",
+                web::get().to(|| async { HttpResponse::Ok().body("Hello, Docker!") }),
+            )
+            .route(
+                "/ping",
+                web::get().to(|| async { HttpResponse::Ok().body("pong") }),
+            )
+            .route(
+                "/visits",
+                web::get().to(|| async { HttpResponse::Ok().body("-1") }),
+            )
     })
     .bind(addr)?
     .run()
