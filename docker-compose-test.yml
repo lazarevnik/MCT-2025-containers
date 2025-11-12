@@ -5,5 +5,4 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - DB_HOST=flask_db
       - TEST_ENV=True
