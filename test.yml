@@ -1,0 +1,36 @@
+name: Test Application
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build and test
+      run: |
+        docker-compose up -d
+        sleep 10
+        
+        response1=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ping)
+        if [ "$response1" != "200" ]; then
+          echo "FAIL: /ping returned $response1"
+          exit 1
+        fi
+        
+        # Тестируем /visits
+        response2=$(curl -s http://localhost:5000/visits)
+        if [ "$response2" != "1" ]; then
+          echo "FAIL: /visits returned $response2, expected 1"
+          exit 1
+        fi
+        
+        echo "SUCCESS: All tests passed"
+        
+    - name: Cleanup
+      if: always()
+      run: docker-compose down
