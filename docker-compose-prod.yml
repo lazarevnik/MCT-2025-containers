@@ -1,0 +1,71 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+    container_name: ping_pong_app
+    ports:
+      - "5000:5000" # FastAPI
+    depends_on:
+      db-init:
+        condition: service_completed_successfully # ждёт пока запустится бд
+      redis:
+        condition: service_healthy # ждёт пока запустится кэш
+    environment:
+      - ENV=prod
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+      - REDIS_URL=redis://redis:6379/0
+    networks:
+      - pingpong_net
+
+  db:
+    image: postgres:15
+    container_name: ping_pong_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432" # db
+    volumes:
+      - db_data:/var/lib/postgresql/data  # сохранение данных между сеансами
+    networks:
+      - pingpong_net
+
+  db-init:
+    build:
+      context: .
+      dockerfile: ./init/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy # ждёт пока запустится postgres
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+    networks:
+      - pingpong_net
+    restart: "no"
+
+  redis:
+    image: redis:7
+    container_name: ping_pong_cache
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pingpong_net
+
+volumes:
+  db_data:
+
+networks:
+  pingpong_net:
