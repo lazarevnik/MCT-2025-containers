@@ -5,15 +5,81 @@ on:
     branches: [ main ]
 
 jobs:
-  test-compose:
+  test-dev:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose up -d
+
+      - name: Start services (dev)
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+      
+      - name: Wait for web to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+
+      - name: Test ping (dev)
+        run: |
+          response=$(curl -s http://localhost:5000/ping)
+          if [[ "$response" != "pong" ]]; then
+            echo "(dev) Expected 'pong', got: $response"
+            exit 1
+          fi
+          echo "(dev) Web test passed!"
+
+
+      - name: Test visits (dev)
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [ "$response" = "-1" ]; then
+            echo "Test visits (dev) OK"
+          else
+            echo "Test visits (dev) failed, expected -1"
+            exit 1
+          fi
+
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml logs
+
+
+
+
+
+  test-prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+
+      - name: Start services (prod)
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+
+      - name: Test DB init
+        run: |
+          if docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db psql -U user -d users_db -c "\d ping_requests"; then
+            echo "DB init OK"
+          else
+            echo "DB init failed"
+            exit 1
+          fi
+
 
       - name: Wait for web to be ready
         run: |
@@ -27,19 +93,19 @@ jobs:
             sleep 1
           done
 
-      - name: Test web response
+
+      - name: Test ping (prod)
         run: |
           response=$(curl -s http://localhost:5000/ping)
           if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
+            echo "(prod) Expected 'pong', got: $response"
             exit 1
           fi
-          echo "Web test passed!"
-
-      - name: Test PostgreSQL connection
-        run: |
-          docker compose exec -T db pg_isready -U user -d app
+          echo "(prod) Web test passed!"
+      
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml logs
+
+
