@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   restbed-app:
     build:
@@ -13,7 +11,7 @@ services:
       - LOG_LEVEL=info
       - DATABASE_URL=postgresql://app_user:app_password@postgres:5432/db
     depends_on:
-      - postgres
+      - db
     develop:
       watch:
         - action: rebuild
@@ -23,7 +21,7 @@ services:
     networks:
       - app-network
     
-  postgres:
+  db:
       image: postgres:15-alpine
       container_name: postgres-db
       environment:
