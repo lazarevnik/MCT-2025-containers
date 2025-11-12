@@ -37,7 +37,7 @@ jobs:
                 fi
                 sleep 1
             done
-        echo "SUCCESS: Redis service is running and responding!"
+            echo "SUCCESS: Redis service is running and responding!"
 
       - name: Wait for web to be ready
         run: |
