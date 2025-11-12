@@ -73,8 +73,8 @@ jobs:
 
       - name: Test DB init
         run: |
-          sleep 60
-          if docker compose -f docker-compose.yml -f docker-compose.prod.yml ps db_init | grep -q "Exited (0)"; then
+          sleep 30
+          if docker compose -f docker-compose.yml -f docker-compose.prod.yml ps init_db | grep -q "Exited (0)"; then
             echo "DB test OK"
           else
             echo "DB test failed"
