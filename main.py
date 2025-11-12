@@ -26,9 +26,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS visits (
                 id SERIAL PRIMARY KEY,
                 ip_address VARCHAR(50),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
         conn.commit()
         cur.close()
         conn.close()
