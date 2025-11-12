@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS visits (
+    id SERIAL PRIMARY KEY,
+    ip_address VARCHAR(64),
+    visit_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

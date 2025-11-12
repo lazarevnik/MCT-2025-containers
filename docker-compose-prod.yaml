@@ -1,0 +1,38 @@
+services:
+    database:
+        image: postgres:18
+        restart: always
+        environment:
+            - POSTGRES_DB=${POSTGRES_DB}
+            - POSTGRES_USER=${POSTGRES_USER}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        volumes:
+            - postgres_data:/var/lib/postgresql
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
+    init:
+        build: .
+        command: ["/server/init/initdb.sh"]
+        depends_on:
+            database:
+                condition: service_healthy
+        environment:
+            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+
+    server:
+        build: .
+        ports:
+            - "5000:80"
+        environment:
+            - APP_MODE=PROD
+            - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+        depends_on:
+            init:
+                condition: service_completed_successfully
+
+volumes:
+  postgres_data:

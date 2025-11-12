@@ -1,45 +1,121 @@
 name: Docker Compose Test
 
 on:
-  pull_request:
-    branches: [ main ]
+    workflow_dispatch:
+    pull_request:
+        branches: [ main ]
 
 jobs:
-  test-compose:
-    runs-on: ubuntu-latest
+    test-application:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
 
-      - name: Start services
-        run: docker compose up -d
+            - name: Setup python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.14"
+                  
+            - name: Run tests
+              run: |
+                    python -m pip install --upgrade pip
+                    pip install --no-cache-dir pytest pytest-cov pytest-asyncio httpx
+                    pip install --no-cache-dir -r requirements.txt
+                    pytest tests.py --maxfail=1 -q
 
-      - name: Wait for web to be ready
-        run: |
-          timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
-            ((timeout--))
-            if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
-              exit 1
-            fi
-            sleep 1
-          done
+    test-compose-dev:
+        runs-on: ubuntu-latest
 
-      - name: Test web response
-        run: |
-          response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
-            exit 1
-          fi
-          echo "Web test passed!"
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
 
-      - name: Test PostgreSQL connection
-        run: |
-          docker compose exec -T db pg_isready -U user -d app
+            - name: Start services
+              run: |
+                    docker compose -f docker-compose-dev.yaml up -d --build
 
-      - name: Show logs on failure
-        if: failure()
-        run: docker compose logs
+            - name: Wait for services
+              run: |
+                    timeout=60
+                    while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
+                    ((timeout--))
+                    if [ $timeout -eq 0 ]; then
+                        echo "Web service failed to start"
+                        exit 1
+                    fi
+                    sleep 1
+                    done
+
+            - name: Test web response
+              run: |
+                    response=$(curl -s http://localhost:5000/ping)
+                    if [[ "$response" != "pong" ]]; then
+                        echo "Expected 'pong', got: $response"
+                        exit 1
+                    fi
+                    response=$(curl -s http://localhost:5000/visits)
+                    if [[ "$response" != "-1" ]]; then
+                        echo "Expected '-1', got: $response"
+                        exit 1
+                    fi
+                    echo "Web test passed!"
+
+    test-compose-prod:
+        runs-on: ubuntu-latest
+
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v5
+
+          - name: Create test .env
+            run: |
+                    cat > .env <<'EOF'
+                    POSTGRES_USER=user
+                    POSTGRES_PASSWORD=pass
+                    POSTGRES_DB=db
+                    EOF
+
+          - name: Start services
+            run: |
+                    docker compose -f docker-compose-prod.yaml up -d --build
+
+          - name: Wait for services
+            run: |
+                    timeout=60
+                    while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
+                    ((timeout--))
+                    if [ $timeout -eq 0 ]; then
+                        echo "Web service failed to start"
+                        exit 1
+                    fi
+                    sleep 1
+                    done
+
+          - name: Test web response
+            run: |
+                    response=$(curl -s http://localhost:5000/ping)
+                    if [[ "$response" != "pong" ]]; then
+                        echo "Expected 'pong', got: $response"
+                        exit 1
+                    fi
+                    response=$(curl -s http://localhost:5000/visits)
+                    if [[ "$response" -le "0" ]]; then
+                        echo "Expected greater than zero, got: $response"
+                        exit 1
+                    fi
+                    echo "Web test passed!"
+
+          - name: Test PostgreSQL connection
+            run: |
+                    docker compose -f docker-compose-prod.yaml exec -T database pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+
+          - name: Verify database initialization
+            run: |
+                    result=$(docker compose -f docker-compose-prod.yaml exec -T database \
+                        psql postgresql://user:pass@database:5432/db -tAc "SELECT to_regclass('public.visits');" | tr -d '[:space:]')
+                    if [[ "$result" != "visits" ]]; then
+                        echo "initialization failed"
+                        exit 1
+                    fi
