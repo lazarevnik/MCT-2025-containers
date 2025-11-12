@@ -36,6 +36,10 @@ def ping():
 
 @app.route('/visits')
 def visits():
+
+    if os.getenv('APP_MODE') == 'dev':
+        return '-1'
+
     conn = psycopg2.connect(
         host = os.getenv('DB_HOST'),
         database = os.getenv('DB_NAME'),
