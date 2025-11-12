@@ -67,22 +67,22 @@ jobs:
 
         steps:
           - name: Checkout code
-              uses: actions/checkout@v5
+            uses: actions/checkout@v5
 
-           - name: Create test .env
-              run: |
+          - name: Create test .env
+            run: |
                     cat > .env <<'EOF'
                     POSTGRES_USER=user
                     POSTGRES_PASSWORD=pass
                     POSTGRES_DB=db
                     EOF
 
-            - name: Start services
-              run: |
+          - name: Start services
+            run: |
                     docker compose -f docker-compose-prod.yaml up -d --build
 
-            - name: Wait for services
-              run: |
+          - name: Wait for services
+            run: |
                     timeout=60
                     while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
                     ((timeout--))
@@ -93,8 +93,8 @@ jobs:
                     sleep 1
                     done
 
-            - name: Test web response
-              run: |
+          - name: Test web response
+            run: |
                     response=$(curl -s http://localhost:80/ping)
                     if [[ "$response" != "pong" ]]; then
                         echo "Expected 'pong', got: $response"
@@ -107,12 +107,12 @@ jobs:
                     fi
                     echo "Web test passed!"
 
-            - name: Test PostgreSQL connection
-              run: |
+          - name: Test PostgreSQL connection
+            run: |
                     docker compose -f docker-compose-prod.yaml exec -T database pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
-            - name: Verify database initialization
-              run: |
+          - name: Verify database initialization
+            run: |
                     result=$(docker compose -f docker-compose-prod.yaml exec -T database \
                         psql postgresql://user:pass@database:5432/db -tAc "SELECT to_regclass('public.visits');" | tr -d '[:space:]')
                     if [[ "$result" != "visits" ]]; then
