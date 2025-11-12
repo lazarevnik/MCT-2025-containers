@@ -37,18 +37,18 @@ services:
       - PGDATABASE=visits_db
       - PGUSER=postgres
       - PGPASSWORD=password
-    volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     depends_on:
       db:
         condition: service_healthy
     command: >
       sh -c "
         until pg_isready -h db -p 5432 -U postgres; do
-          echo waiting for database to start;
+          echo 'Waiting for database to be ready...';
           sleep 2;
         done;
-        psql -f /docker-entrypoint-initdb.d/init.sql
+        echo 'Database is ready, running init script...';
+        psql -c 'CREATE TABLE IF NOT EXISTS visits (id SERIAL PRIMARY KEY, ip_address VARCHAR(45) NOT NULL, visit_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP);';
+        echo 'Init script completed successfully';
       "
     restart: "no"
 
