@@ -1,0 +1,12 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000" # FastAPI
+    environment:
+      - ENV=dev
+      - BASE_URL=http://localhost:5000
