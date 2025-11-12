@@ -28,7 +28,7 @@ def insert_visit(ip: str):
 
 def count_visits() -> int:
     if not app.state.database:
-        return
+        return 0
     conn = psycopg2.connect(app.state.database)
     with conn:
         with conn.cursor() as cur:
