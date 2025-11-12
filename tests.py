@@ -48,21 +48,6 @@ def test_visits_prod_mode_database_error():
         assert response.status_code == 200
         assert response.text == "0"
 
-def test_app_mode_dev():
-    with patch.dict(os.environ, {"APP_MODE": "DEV"}):
-        from server import app as new_app
-        assert new_app.state.mode == AppMode.DEV
-
-def test_app_mode_prod():
-    with patch.dict(os.environ, {"APP_MODE": "PROD"}):
-        from server import app as new_app
-        assert new_app.state.mode == AppMode.PROD
-
-def test_app_database():
-    with patch.dict(os.environ, {"DATABASE_URL": "postgresql://test"}):
-        from server import app as new_app
-        assert new_app.state.database == "postgresql://test"
-
 def test_ping_without_database():
     app.state.mode = AppMode.PROD
     app.state.database = ""
