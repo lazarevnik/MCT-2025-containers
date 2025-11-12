@@ -39,7 +39,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Start services
-        run: docker compose up -d
+        run: docker compose -f docker-compose.yml up -d
 
       - name: Wait for web to be ready
         run: |
@@ -92,6 +92,52 @@ jobs:
       - name: Test Redis connection
         run: |
           docker compose exec -T redis redis-cli ping
+
+      - name: Test production visits endpoint
+        run: |
+          # Call ping to create visits
+          curl -s http://localhost:8000/ping
+          curl -s http://localhost:8000/ping
+
+          # Check visits count (should be >= 2)
+          visits=$(curl -s http://localhost:8000/visits | jq -r '.visits')
+          echo "Production visits count: $visits"
+          if [ "$visits" -lt 2 ]; then
+            echo "Expected visits >= 2, got: $visits"
+            exit 1
+          fi
+
+      - name: Stop production services
+        run: docker compose -f docker-compose.yml down
+
+      - name: Test dev environment
+        run: |
+          # Start dev environment
+          docker compose -f docker-compose.dev.yml up -d
+
+          # Wait for service
+          timeout=30
+          while ! curl -f http://localhost:8000/health >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Dev web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Test that /visits returns -1 in dev mode
+          visits=$(curl -s http://localhost:8000/visits | jq -r '.visits')
+          echo "Dev mode visits: $visits"
+          if [ "$visits" != "-1" ]; then
+            echo "Expected -1 in dev mode, got: $visits"
+            exit 1
+          fi
+
+          echo "Dev environment test passed!"
+
+          # Cleanup
+          docker compose -f docker-compose.dev.yml down
 
       - name: Show logs on failure
         if: failure()
