@@ -2,7 +2,7 @@ name: Docker Compose Test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test-compose:
@@ -11,6 +11,32 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+
+      - name: Run unit tests with coverage
+        run: |
+          cd app
+          pytest --cov=. --cov-report=term --cov-report=xml --cov-fail-under=60
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          REDIS_URL: "redis://localhost:6379/0"
+
+      - name: Upload coverage report
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./app/coverage.xml
+          fail_ci_if_error: false
 
       - name: Start services
         run: docker compose up -d
@@ -62,7 +88,7 @@ jobs:
             echo "Redis is not running"
             exit 1
           fi
-          
+
       - name: Test Redis connection
         run: |
           docker compose exec -T redis redis-cli ping
