@@ -73,4 +73,4 @@ def test_count_visits_without_database():
     app.state.database = ""
     from server import count_visits
     result = count_visits()
-    assert result is None
+    assert result.text == "0"
