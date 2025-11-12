@@ -55,7 +55,7 @@ jobs:
                         echo "Expected 'pong', got: $response"
                         exit 1
                     fi
-                    response=$(curl -s http://localhost:80/visits)
+                    response=$(curl -s http://localhost:5000/visits)
                     if [[ "$response" != "-1" ]]; then
                         echo "Expected '-1', got: $response"
                         exit 1
@@ -100,7 +100,7 @@ jobs:
                         echo "Expected 'pong', got: $response"
                         exit 1
                     fi
-                    response=$(curl -s http://localhost:80/visits)
+                    response=$(curl -s http://localhost:5000/visits)
                     if [[ "$response" -le "0" ]]; then
                         echo "Expected greater than zero, got: $response"
                         exit 1
