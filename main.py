@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import PlainTextResponse
 import psycopg2
 import os
 from contextlib import contextmanager
@@ -30,7 +31,7 @@ def get_db_connection():
 def root():
     return {"status": "ok"}
 
-@app.get("/ping")
+@app.get("/ping", response_class=PlainTextResponse)
 def ping(request: Request):
     client_ip = request.client.host
     if request.headers.get("x-forwarded-for"):
@@ -41,7 +42,7 @@ def ping(request: Request):
             conn.commit()
     return "pong"
 
-@app.get("/visits")
+@app.get("/visits", response_class=PlainTextResponse)
 def get_visits():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
