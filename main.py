@@ -25,6 +25,11 @@ def on_startup():
     global engine
     engine = create_engine(db_url, echo=True)
 
+@app.get("/")
+def main_page():
+    # enable ping 
+    return f"<html><head><title>Welcome to the internet</title></head><body><h1>Welcome to the internet</h1></body></html>"
+
 @app.get("/ping")
 def ping_pong(request : Request):
     ip = request.client.host
