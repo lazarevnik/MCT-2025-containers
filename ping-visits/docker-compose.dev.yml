@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    container_name: pingvisits_app_dev
+    environment:
+      - DEV=1
+    ports:
+      - "8080:8080"

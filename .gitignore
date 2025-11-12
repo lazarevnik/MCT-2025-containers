@@ -1,0 +1,4 @@
+.env
+*.env
+ping-visits/target/
+tarpaulin-report.html
