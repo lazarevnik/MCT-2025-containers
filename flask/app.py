@@ -1,10 +1,11 @@
-from os import environ
+import os
 from flask import Flask, request
 import psycopg2
 
 app = Flask(__name__)
 
 password = "mysecretpassword"
+test_env = os.getenv("TEST_ENV", "False")
 
 @app.route('/')
 def start():
@@ -12,18 +13,19 @@ def start():
 
 @app.route('/ping')
 def ping():
-    db_host = environ.get('DB_HOST')
+    if test_env == 'True':
+        return 'pong'
+
+    db_host = os.environ.get('DB_HOST')
     conn = psycopg2.connect(database="ping_db",
                             user="postgres",
                             password=password,
                             host=db_host, port="5432")
     cur = conn.cursor()
 
-    client_ip = request.remote_addr
-
     cur.execute(
         f'''INSERT INTO ips (client_ip, call_count) \
-        VALUES ('{client_ip}', 1) \
+        VALUES ('{request.remote_addr}', 1) \
         ON CONFLICT (client_ip) \
         DO UPDATE SET call_count = ips.call_count + 1;''')
 
@@ -36,7 +38,10 @@ def ping():
 
 @app.route('/visits')
 def visits():
-    db_host = environ.get('DB_HOST')
+    if test_env == 'True':
+        return '-1'
+
+    db_host = os.environ.get('DB_HOST')
     conn = psycopg2.connect(database="ping_db",
                             user="postgres",
                             password=password,
