@@ -73,17 +73,18 @@ jobs:
 
       - name: Test DB init
         run: |
-          timeout=50
+          timeout=70
           while ! docker compose -f docker-compose.yml -f docker-compose.prod.yml ps db_init | grep -q "Exited (0)"; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "DB test failed"
               docker compose -f docker-compose.yml -f docker-compose.prod.yml logs db_init
+              docker compose -f docker-compose.yml -f docker-compose.prod.yml logs db
               exit 1
             fi
             sleep 2
           done
-          echo "DB init test OK"
+          echo "DB init OK"
       
 
       - name: Wait for web to be ready
