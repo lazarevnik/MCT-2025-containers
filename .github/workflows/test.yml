@@ -18,19 +18,34 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
-      - name: Wait for services to be ready
+      - name: Wait for db-init to complete
         run: |
           timeout=60
-          while ! docker compose ps db-init | grep -q "exited (0)"; do
+          while [ $(docker compose ps db-init --status running | wc -l) -eq 2 ]; do
+            sleep 1
             ((timeout--))
             if [ $timeout -eq 0 ]; then
-              echo "DB init service failed to complete successfully"
+              echo "db-init did not complete in time"
               docker compose logs db-init
               exit 1
             fi
-            sleep 1
           done
-          echo "DB init completed successfully"
+          
+          # Check exit status of db-init
+          status=$(docker compose ps db-init --format json | jq -r '.[].State')
+          if [ "$status" != "exited" ]; then
+            echo "db-init service did not exit properly"
+            docker compose logs db-init
+            exit 1
+          fi
+          
+          exit_code=$(docker compose ps db-init --format json | jq -r '.[].ExitCode')
+          if [ "$exit_code" -ne 0 ]; then
+            echo "db-init failed with exit code $exit_code"
+            docker compose logs db-init
+            exit 1
+          fi
+          echo "db-init completed successfully"
 
       - name: Wait for web to be ready
         run: |
@@ -61,6 +76,15 @@ jobs:
             exit 1
           fi
           echo "Visits endpoint test passed!"
+
+      - name: Verify table creation
+        run: |
+          result=$(docker compose exec -T db psql -U postgres -d visits_db -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'visits');" | tr -d '[:space:]')
+          if [ "$result" != "t" ]; then
+            echo "Table 'visits' was not created"
+            exit 1
+          fi
+          echo "Table verification passed!"
 
       - name: Show logs on failure
         if: failure()
