@@ -1,0 +1,82 @@
+services:
+  web:
+    build: ./app
+    ports:
+      - "80:5000"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+  init-db:
+    image: postgres:13
+    environment:
+      - PGPASSWORD=password
+    volumes:
+      - ./db/initDB.sql:/initDB.sql
+    command: >
+      sh -c "echo 'Waiting for database to be ready...';
+          until pg_isready -h db; do
+            sleep 2;
+          done;
+          echo 'Running db init script...';
+          psql -h db -U postgres -d postgres -f /initDB.sql;
+          echo 'Initialization completed successfully.'"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis_data:/data
+
+  tests:
+    build: 
+      context: ./app
+      dockerfile: Dockerfile.test
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+volumes:
+  postgres_data:
+  redis_data:

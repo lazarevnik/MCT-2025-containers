@@ -15,10 +15,34 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Test database initialization
+        run: |
+          if ! docker compose exec -T db psql -U postgres -d postgres -c "\dt visits" | grep -q "visits"; then
+            echo "ERROR: Table 'visits' does not exist. initDB.sql didnt run? DB initialization failed :("
+            echo "Current 'visits' table:"
+            docker compose exec -T db psql -U postgres -d postgres -c "\dt"
+            exit 1
+          fi
+          echo "SUCCESS: Database initialization verified successfully!"
+
+      - name: Test Redis connection
+        run: |
+            timeout=30
+            while ! docker compose exec -T redis redis-cli ping | grep -q "PONG"; do
+                ((timeout--))
+                if [ $timeout -eq 0 ]; then
+                echo "Redis service failed to start"
+                docker compose logs redis
+                exit 1
+                fi
+                sleep 1
+            done
+            echo "SUCCESS: Redis service is running and responding!"
+
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:80 >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
@@ -29,7 +53,7 @@ jobs:
 
       - name: Test web response
         run: |
-          response=$(curl -s http://localhost:5000/ping)
+          response=$(curl -s http://localhost:80/ping)
           if [[ "$response" != "pong" ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
@@ -38,7 +62,13 @@ jobs:
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T db pg_isready -U postgres -d postgres
+        
+      - name: Run tests with coverage check
+        run: |
+            echo "Running tests with coverage requirement..."
+            docker compose up tests --exit-code-from tests
+            echo "SUCCESS: All tests passed with required coverage >=60%!"
 
       - name: Show logs on failure
         if: failure()
