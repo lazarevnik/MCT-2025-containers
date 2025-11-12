@@ -28,15 +28,16 @@ def test_visits_prod_mode_success():
     app.state.mode = AppMode.PROD
     app.state.database = "postgresql://test"
     with patch("server.psycopg2.connect") as mock_connect:
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-        mock_cur = MagicMock()
-        mock_conn.__enter__.return_value.cursor.return_value.__enter__.return_value = mock_cur
-        mock_cur.fetchone.return_value = [5]
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+            mock_cur = MagicMock()
+            mock_conn.cursor.return_value.__enter__.return_value = mock_cur
+            mock_cur.fetchone.return_value = [5]
+
+            response = client.get("/visits")
             
-        response = client.get("/visits")
-        assert response.status_code == 200
-        assert response.text == "5"
+            assert response.status_code == 200
+            assert response.text == "5"
 
 def test_visits_prod_mode_database_error():
     app.state.mode = AppMode.PROD
