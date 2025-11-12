@@ -9,11 +9,45 @@ services:
       - "5000:5000"
     volumes:
       - ./src:/app/src:ro
-    restart: unless-stopped
     environment:
       - LOG_LEVEL=info
+      - DATABASE_URL=postgresql://app_user:app_password@postgres:5432/db
+    depends_on:
+      - postgres
     develop:
       watch:
         - action: rebuild
           path: ./src
           target: /app/src
+    restart: unless-stopped
+    networks:
+      - app-network
+    
+  postgres:
+      image: postgres:15-alpine
+      container_name: postgres-db
+      environment:
+        - POSTGRES_DB=db
+        - POSTGRES_USER=user
+        - POSTGRES_PASSWORD=password
+        - POSTGRES_INITDB_ARGS=--encoding=UTF8
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+        - ./src/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      ports:
+        - "5432:5432"
+      restart: unless-stopped
+      networks:
+        - app-network
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U user -d db"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+volumes:
+    postgres_data:
+
+networks:
+    app-network:
+        driver: bridge

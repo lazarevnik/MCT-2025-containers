@@ -10,9 +10,7 @@ RUN apt-get update && \
     libboost-coroutine-dev \
     libboost-context-dev \
     libasio-dev \
-    libssl-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
+    libpq-dev
 
 WORKDIR /tmp
 RUN git clone https://github.com/corvusoft/restbed.git \
@@ -42,8 +40,23 @@ RUN mkdir build && cd build && \
 FROM ubuntu:22.04
 
 # Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+    # libboost-system1.74.0 \
+    # libboost-coroutine1.74.0 \
+    # libboost-context1.74.0 \
+    # libssl3 \
+    # libpq5 \
+    # libpq-dev \
+    # && apt-get clean \
+    # && rm -rf /var/lib/apt/lists/*
+
 #RUN apt-get update && \
 #    apt-get install -y \
+#    libpq5 \
+#    && rm -rf /var/lib/apt/lists/*
 #    libboost-system1.74 \
 #    libboost-coroutine1.74 \
 #    libboost-context1.74 \
@@ -64,7 +77,7 @@ USER appuser
 WORKDIR /home/appuser
 
 # Open application port
-EXPOSE 1984
+# EXPOSE 1984
 
 # Run application
 CMD ["/usr/local/bin/restbed-app"]
