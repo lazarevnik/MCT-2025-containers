@@ -26,6 +26,10 @@ def get_db_connection():
         if conn:
             conn.close()
 
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
 @app.get("/ping")
 def ping(request: Request):
     client_ip = request.client.host
