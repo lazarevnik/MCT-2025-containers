@@ -7,9 +7,9 @@ app = FastAPI()
 
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'db'),
-    'port': os.getenv('DB_PORT', '5432'),
-    'database': os.getenv('DB_NAME', 'visits_db'),
-    'user': os.getenv('DB_USER', 'postgres'),
+    'port': os.getenv('DB_PORT', '5000'),
+    'database': os.getenv('DB_NAME', 'app'),
+    'user': os.getenv('DB_USER', 'user'),
     'password': os.getenv('DB_PASSWORD', 'password')
 }
 
