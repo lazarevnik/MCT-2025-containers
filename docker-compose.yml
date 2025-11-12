@@ -39,7 +39,7 @@ services:
       interval: 2s
       timeout: 2s
       retries: 20
-      start_period: 20s
+      start_period: 30s
 
 volumes:
   postgres_data:
