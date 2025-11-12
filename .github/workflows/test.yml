@@ -18,6 +18,20 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Wait for services to be ready
+        run: |
+          timeout=60
+          while ! docker compose ps db-init | grep -q "exited (0)"; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "DB init service failed to complete successfully"
+              docker compose logs db-init
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "DB init completed successfully"
+
       - name: Wait for web to be ready
         run: |
           timeout=60
@@ -39,9 +53,14 @@ jobs:
           fi
           echo "Web test passed!"
 
-      - name: Test PostgreSQL connection
+      - name: Test visits endpoint
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ ! "$response" =~ ^[0-9]+$ ]]; then
+            echo "Expected number of visits, got: $response"
+            exit 1
+          fi
+          echo "Visits endpoint test passed!"
 
       - name: Show logs on failure
         if: failure()
