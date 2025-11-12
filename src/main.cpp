@@ -101,16 +101,21 @@ void visitors_handler(const shared_ptr<Session> session)
     session->close(OK, body, headers);
 }
 
+void root_handler(const shared_ptr<Session> session)
+{
+    session->close(OK, "", {{"Connection", "Close"}});
+}
+
 void get_method_handler(const shared_ptr<Session> session)
 {
     const auto request = session->get_request();
-    const string request_param = request->get_path_parameter("request");
+    const string path = request->get_path_parameter("request");
 
-    if (request_param == "ping") {
+    if (path == "ping") {
         ping_handler(session);
-    } else if (request_param == "visits") {
+    } else if (path == "visits") {
         visits_handler(session);
-    } else if (request_param == "visitors") {
+    } else if (path == "visitors") {
         visitors_handler(session);
     }
 
@@ -120,6 +125,10 @@ void get_method_handler(const shared_ptr<Session> session)
 int main(const int, const char**) {
     init_database();
 
+    auto root_resource = make_shared<Resource>();
+    root_resource->set_path("/");
+    root_resource->set_method_handler("GET", root_handler);
+
     auto resource = make_shared<Resource>();
     resource->set_path("/{request: [a-z]*}");
     resource->set_method_handler("GET", get_method_handler);
@@ -128,7 +137,9 @@ int main(const int, const char**) {
     settings->set_port(5000);
     settings->set_default_header("Connection", "close");
 
-    Service service; service.publish(resource);
+    Service service;
+    service.publish(root_resource);
+    service.publish(resource);
     service.start(settings);
 
     if (db_connection) {

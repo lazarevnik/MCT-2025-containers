@@ -15,6 +15,16 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Test sql init
+        run: |
+          check_query="SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'visitors');"
+          check=`docker compose exec db psql -d db -U user -tAc $check_query`
+          if [[ $check != "t" ]]; then
+            echo "Expected 't', got: $check"
+            exit 1
+          fi
+          echo "SQL init test passed!"
+
       - name: Wait for web to be ready
         run: |
           timeout=60
