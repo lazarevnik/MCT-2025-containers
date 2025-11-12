@@ -12,24 +12,24 @@ app = FastAPI()
 
 app.state.mode = AppMode.DEV if os.getenv("APP_MODE", "").upper() == "DEV" else AppMode.PROD
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+app.state.database = os.getenv("DATABASE_URL", "")
 
-if not DATABASE_URL:
+if not app.state.database:
     print("Running without database, are you sure this is intended?")
 
 def insert_visit(ip: str):
-    if not DATABASE_URL:
+    if not app.state.database:
         return
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(app.state.database)
     with conn:
         with conn.cursor() as cur:
             cur.execute("INSERT INTO visits (ip_address) VALUES (%s)", (ip,))
     conn.close()
 
 def count_visits() -> int:
-    if not DATABASE_URL:
+    if not app.state.database:
         return
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(app.state.database)
     with conn:
         with conn.cursor() as cur:
             cur.execute("SELECT count(*) FROM visits")
