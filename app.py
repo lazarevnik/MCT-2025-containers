@@ -1,7 +1,6 @@
 from flask import Flask, request
 import psycopg2
 import os
-import time
 
 app = Flask(__name__)
 
@@ -13,26 +12,6 @@ DB_PASSWORD = os.getenv('DB_PASSWORD')
 @app.route('/')
 def root():
     return "/ping or /visits"
-
-
-def init_db():
-    time.sleep(10)
-    
-    conn = psycopg2.connect(
-        host = DB_HOST,
-        database = DB_DATABASE,
-        user = DB_USER,
-        password = DB_PASSWORD
-    )
-    cur = conn.cursor()
-    
-    
-    cur.execute(''' CREATE TABLE IF NOT EXISTS ping_requests ( ip_address VARCHAR(45) NOT NULL ) ''')
-    
-    conn.commit()
-    cur.close()
-    conn.close()
-
 
 
 @app.route('/ping') 
@@ -73,8 +52,5 @@ def visits():
     
     return str(cnt)
 
-init_db()
-
 if __name__ == '__main__':
-    # Запускаем приложение на порту 5000
     app.run(host = '0.0.0.0', port = 5000)
