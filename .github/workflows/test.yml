@@ -63,6 +63,12 @@ jobs:
       - name: Test PostgreSQL connection
         run: |
           docker compose exec -T db pg_isready -U postgres -d postgres
+        
+      - name: Run tests with coverage check
+        run: |
+            echo "Running tests with coverage requirement..."
+            docker compose up tests --exit-code-from tests
+            echo "SUCCESS: All tests passed with required coverage >=60%!"
 
       - name: Show logs on failure
         if: failure()
