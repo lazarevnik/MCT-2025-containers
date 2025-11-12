@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS ips (client_ip inet PRIMARY KEY UNIQUE, call_count INTEGER DEFAULT 0);

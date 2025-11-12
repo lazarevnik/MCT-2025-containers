@@ -36,9 +36,18 @@ jobs:
           fi
           echo "Web test passed!"
 
+      - name: Test web response (ping count)
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != "1" ]]; then
+            echo "Expected '1', got: $response"
+            exit 1
+          fi
+          echo "Web test (ping count) passed!"
+
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T flask_db pg_isready -U postgres -d ping_db
 
       - name: Show logs on failure
         if: failure()
