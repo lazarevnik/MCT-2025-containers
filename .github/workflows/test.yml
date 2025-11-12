@@ -12,13 +12,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose up -d
+      # === PROD окружение ===
+      - name: Start prod environment
+        run: docker compose -f docker-compose-prod.yml up -d --build
 
+      # Проверка инициализации БД
+      - name: Check DB initialization
+        run: |
+          docker compose logs db-init
+          container_id=$(docker ps -a -q -f name=db-init)
+          if [ -z "$container_id" ]; then
+            exit 1
+          fi
+          status=$(docker inspect -f '{{.State.ExitCode}}' "$container_id")
+          if [ "$status" -ne 0 ]; then
+            echo "DB init failed: $status"
+            exit 1
+          fi
+          echo "DB init successfully"
+
+      # Проверка кэша
+      - name: Check Redis health
+        run: |
+          docker compose exec -T redis redis-cli ping | grep PONG
+
+      # Ждём запуска приложения
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
@@ -26,7 +48,9 @@ jobs:
             fi
             sleep 1
           done
+          echo "App run successfully"
 
+      # Проверка запроса /ping
       - name: Test web response
         run: |
           response=$(curl -s http://localhost:5000/ping)
@@ -36,9 +60,45 @@ jobs:
           fi
           echo "Web test passed!"
 
-      - name: Test PostgreSQL connection
+      # Проверка запроса /visit для прода
+      - name: Test prod /visits
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          response=$(curl -s http://localhost:5000/visits)
+          if ! [[ "$response" =~ ^[0-9]+$ ]]; then
+            echo "Expected integer visit count, got: $response"
+            exit 1
+          fi
+          echo "Prod web /visits OK"
+
+      # === DEV окружение ===
+      - name: Stop prod environment
+        run: docker compose down
+
+      - name: Start dev environment
+        run: docker compose -f docker-compose-dev.yml up -d --build
+
+      # Ждём запуска приложения
+      - name: Wait for web to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      # Проверка запроса /visit для dev
+      - name: Test dev /visits
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != "-1" ]]; then
+            echo "Expected -1 in dev mode, got: $response"
+            exit 1
+          fi
+          echo "Dev environment OK"
 
       - name: Show logs on failure
         if: failure()
