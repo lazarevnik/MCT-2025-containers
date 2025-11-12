@@ -12,8 +12,6 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=password
     depends_on:
-      db:
-        condition: service_healthy
       db-init:
         condition: service_completed_successfully
     restart: unless-stopped
@@ -27,7 +25,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d visits_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -46,6 +44,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    command: >
+      sh -c "
+        until pg_isready -h db -p 5432 -U postgres; do
+          echo waiting for database to start;
+          sleep 2;
+        done;
+        psql -f /docker-entrypoint-initdb.d/init.sql
+      "
     restart: "no"
 
 volumes:
