@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS ping_requests (ip_address VARCHAR(45) NOT NULL);

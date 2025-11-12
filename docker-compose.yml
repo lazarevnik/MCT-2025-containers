@@ -12,20 +12,8 @@ services:
       - DB_USER=user 
       - DB_PASSWORD=password 
     depends_on:
-      db_init:
-        condition: service_completed_successfully
-
-  db_init:
-    build: .
-    environment:
-      - DB_HOST=db 
-      - DB_NAME=users_db 
-      - DB_USER=user 
-      - DB_PASSWORD=password 
-    depends_on:
       db:
         condition: service_healthy
-    command: ["python", "init_db.py"]
 
 
   db:
@@ -36,6 +24,7 @@ services:
       - POSTGRES_PASSWORD=password 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d users_db"]
       interval: 2s
