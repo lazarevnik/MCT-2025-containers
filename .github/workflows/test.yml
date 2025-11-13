@@ -72,8 +72,8 @@ jobs:
       - name: Verify data in PostgreSQL
         run: |
           count=$(docker compose exec -T db psql -U postgres -d visitsdb -tAc "SELECT COUNT(*) FROM visits;")
-          if [[ "$count" != "2" ]]; then
-            echo "Expected 2 rows in DB, got: $count"
+          if [[ "$count" != "3" ]]; then
+            echo "Expected 3 rows in DB, got: $count"
             exit 1
           fi
 
