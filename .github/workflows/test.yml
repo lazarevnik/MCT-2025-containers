@@ -36,6 +36,16 @@ jobs:
           fi
           echo "Web test passed!"
 
+      - name: Check init-db completed successfully
+        run: |
+          exit_code=$(docker inspect init-db --format='{{.State.ExitCode}}')
+          if [[ "$exit_code" != "0" ]]; then
+            echo "init-db failed with exit code: $exit_code"
+            docker compose logs init-db
+            exit 1
+          fi
+          echo "init-db completed successfully!"
+
       - name: Test PostgreSQL connection
         run: |
           docker compose exec -T db pg_isready -U user -d app
