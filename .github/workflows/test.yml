@@ -36,20 +36,16 @@ jobs:
           fi
           echo "Web test passed!"
 
-      - name: Check init-db completed successfully
+      - name: Check init-db
         run: |
-          init_id=$(docker compose ps -q init-db)
-          if [[ -z "$init_id" ]]; then
-            echo "init-db container not found!"
+          curl -f http://localhost:5000/ping >/dev/null      
+          count=$(docker compose exec -T db \
+            psql -U user -d app -t -c "SELECT COUNT(*) FROM visits;" | xargs)
+          if [[ "$count" != "1" ]]; then
+            echo "Expected 1 row in 'visits' after /ping, got: $count"
             exit 1
           fi
-          exit_code=$(docker inspect "$init_id" --format='{{.State.ExitCode}}')
-          if [[ "$exit_code" != "0" ]]; then
-            echo "init-db failed (exit code: $exit_code)"
-            docker compose logs init-db
-            exit 1
-          fi
-          echo "init-db succeeded!"
+          echo "DB init confirmed: 1 visit recorded"
 
       - name: Test PostgreSQL connection
         run: |

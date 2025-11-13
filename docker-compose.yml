@@ -25,7 +25,6 @@ services:
       PGPASSWORD: pass
     volumes:
       - ./db:/init:ro
-    restart: "no"
     command: >
       bash -c "
         until pg_isready -h db -U user -d app; do sleep 1; done;
