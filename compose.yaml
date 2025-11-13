@@ -3,9 +3,12 @@ services:
     build: .
     ports:
       - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
-    image: "postgres:18.0-alpine3.22"
+    image: "postgres:17-alpine3.22"
     environment:
       POSTGRES_USER: 11cloud2
       POSTGRES_DB: 11cloud2_db
@@ -14,6 +17,30 @@ services:
       - db_data:/var/lib/postgresql/data
     expose:
       - 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U 11cloud2 -d 11cloud2_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      dbinit:
+        condition: service_completed_successfully
+
+  dbinit:
+    image: "alpine:3.22"
+    environment:
+      POSTGRES_USER: 11cloud2
+      POSTGRES_DB: 11cloud2_db
+      POSTGRES_PASSWORD: zeroZEROzeroZERO
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - type: bind
+        source: ./initdb.sh
+        target: /initdb.sh
+        read_only: true
+    command: /bin/ash /initdb.sh
+    
 
 volumes:
   db_data:
