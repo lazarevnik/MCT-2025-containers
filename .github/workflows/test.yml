@@ -1,6 +1,9 @@
 name: Docker Compose Test
 
 on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
   pull_request:
     branches: [ main ]
 
@@ -15,7 +18,7 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
-      - name: Wait for web to be ready
+      - name: Wait for services to be ready
         run: |
           timeout=60
           while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
@@ -26,6 +29,11 @@ jobs:
             fi
             sleep 1
           done
+          docker compose exec -T redis redis-cli ping | grep -q PONG
+          if [ $? -ne 0 ]; then
+            echo "Redis is not responding"
+            exit 1
+          fi
 
       - name: Test web response
         run: |
@@ -38,7 +46,22 @@ jobs:
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T db pg_isready -U postgres -d visits_db
+
+      - name: Test Redis connection
+        run: |
+          docker compose exec -T redis redis-cli ping
+
+      - name: Test caching functionality
+        run: |
+          initial=$(curl -s http://localhost:5000/visits)
+          curl -s http://localhost:5000/ping > /dev/null
+          updated=$(curl -s http://localhost:5000/visits)
+          if [ "$initial" -ge "$updated" ]; then
+            echo "Cache inconsistency: $initial >= $updated"
+            exit 1
+          fi
+          echo "Cache test passed!"
 
       - name: Show logs on failure
         if: failure()
