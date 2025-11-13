@@ -3,6 +3,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 import time
+import redis
+import json
 
 app = Flask(__name__)
 
@@ -14,31 +16,14 @@ DB_CONFIG = {
     'port': os.getenv('POSTGRES_PORT', '5432')
 }
 
-def init_db():
-    max_retries = 5
-    for i in range(max_retries):
-        try:
-            conn = psycopg2.connect(**DB_CONFIG)
-            cur = conn.cursor()
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS requests (
-                    id SERIAL PRIMARY KEY,
-                    client_ip VARCHAR(45) NOT NULL,
-                    request_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    endpoint VARCHAR(50) NOT NULL
-                )
-            ''')
-            conn.commit()
-            cur.close()
-            conn.close()
-            print("База данных успешно инициализирована")
-            return
-        except Exception as e:
-            print(f"Попытка {i+1}/{max_retries}: Ошибка подключения к БД: {e}")
-            if i < max_retries - 1:
-                time.sleep(5)
-            else:
-                print("Не удалось подключиться к БД после всех попыток")
+REDIS_CONFIG = {
+    'host': os.getenv('REDIS_HOST', 'redis'),
+    'port': int(os.getenv('REDIS_PORT', 6379)),
+    'db': 0,
+    'decode_responses': True
+}
+
+redis_client = redis.Redis(**REDIS_CONFIG)
 
 def log_request(client_ip, endpoint):
     try:
@@ -51,10 +36,17 @@ def log_request(client_ip, endpoint):
         conn.commit()
         cur.close()
         conn.close()
+
+        redis_client.delete('visits_count')
     except Exception as e:
         print(f"Ошибка при записи в БД: {e}")
 
 def get_visits_count():
+    cached_count = redis_client.get('visits_count')
+    if cached_count:
+        print("Получено из кэша")
+        return int(cached_count)
+    
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
@@ -62,12 +54,13 @@ def get_visits_count():
         count = cur.fetchone()[0]
         cur.close()
         conn.close()
+        
+        redis_client.setex('visits_count', 30, count)
+        print("Получено из БД и сохранено в кэш")
         return count
     except Exception as e:
         print(f"Ошибка при чтении из БД: {e}")
         return 0
-
-init_db()
 
 @app.route('/')
 def home():
@@ -100,6 +93,11 @@ def all_requests():
         return {'requests': result}
     except Exception as e:
         return {'error': str(e)}, 500
+
+@app.route('/cache/clear')
+def clear_cache():
+    redis_client.flushdb()
+    return 'Cache cleared'
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
