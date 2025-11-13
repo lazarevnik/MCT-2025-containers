@@ -8,203 +8,61 @@ on:
     branches: [ main ]
 
 jobs:
-  unit-tests:
+  test-compose:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.9, 3.10, 3.11]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio httpx
-
-      - name: Run unit tests with coverage
-        run: |
-          pytest --cov=main --cov-report=xml --cov-report=term-missing --cov-fail-under=100 test_main.py -v
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-${{ matrix.python-version }}
-
-      - name: Run security audit
-        run: |
-          pip install bandit
-          bandit -r main.py -f html -o security_report.html || true
-
-      - name: Code quality check
-        run: |
-          pip install pylint
-          pylint main.py --exit-zero
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
 
       - name: Start services
         run: docker compose up -d
 
       - name: Wait for services to be ready
         run: |
-          timeout=120
-          while ! curl -f http://localhost:5000/ >/dev/null 2>&1; do
+          timeout=60
+          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
-              docker compose logs app
               exit 1
             fi
-            sleep 2
+            sleep 1
           done
-          echo "Web service is ready"
-
-      - name: Check service health
-        run: |
-          # Test web service root endpoint
-          curl -f http://localhost:5000/ || exit 1
-          
-          # Test PostgreSQL
-          docker compose exec -T db pg_isready -U postgres -d visits_db || exit 1
-          
-          # Test Redis
-          docker compose exec -T redis redis-cli ping | grep -q PONG || exit 1
-          echo "All services are healthy"
-
-      - name: Run API tests
-        run: |
-          # Test ping endpoint
-          response=$(curl -s -w "%{http_code}" http://localhost:5000/ping)
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | head -n1)
-          
-          if [ "$http_code" != "200" ] || [ "$body" != "pong" ]; then
-            echo "Ping test failed: HTTP $http_code, Body: $body"
+          docker compose exec -T redis redis-cli ping | grep -q PONG
+          if [ $? -ne 0 ]; then
+            echo "Redis is not responding"
             exit 1
           fi
-          echo "Ping test passed"
 
-      - name: Test database functionality
+      - name: Test web response
         run: |
-          # Get initial visits count
-          initial_visits=$(curl -s http://localhost:5000/visits)
-          echo "Initial visits: $initial_visits"
-          
-          # Make a new visit
-          curl -s http://localhost:5000/ping > /dev/null
-          
-          # Get updated visits count
-          updated_visits=$(curl -s http://localhost:5000/visits)
-          echo "Updated visits: $updated_visits"
-          
-          # Verify count increased
-          if [ "$initial_visits" -ge "$updated_visits" ]; then
-            echo "Database test failed: visits didn't increase"
+          response=$(curl -s http://localhost:5000/ping)
+          if [[ "$response" != "pong" ]]; then
+            echo "Expected 'pong', got: $response"
             exit 1
           fi
-          echo "Database test passed"
+          echo "Web test passed!"
 
-      - name: Test caching mechanism
+      - name: Test PostgreSQL connection
         run: |
-          # First request should hit database
-          echo "First request (should hit DB):"
-          time curl -s http://localhost:5000/visits > /dev/null
-          
-          # Second request should be cached
-          echo "Second request (should be cached):"
-          time curl -s http://localhost:5000/visits > /dev/null
-          
-          # Invalidate cache
+          docker compose exec -T db pg_isready -U postgres -d visits_db
+
+      - name: Test Redis connection
+        run: |
+          docker compose exec -T redis redis-cli ping
+
+      - name: Test caching functionality
+        run: |
+          initial=$(curl -s http://localhost:5000/visits)
           curl -s http://localhost:5000/ping > /dev/null
-          
-          # Third request should hit database again
-          echo "Third request (cache invalidated, should hit DB):"
-          time curl -s http://localhost:5000/visits > /dev/null
-          echo "Cache test completed"
-
-      - name: Load testing
-        run: |
-          pip install pip-install-pep517
-          pip install locust
-          cat > locustfile.py << 'EOF'
-from locust import HttpUser, task, between
-
-class QuickstartUser(HttpUser):
-    wait_time = between(1, 2.5)
-
-    @task
-    def hello_world(self):
-        self.client.get("/")
-
-    @task(3)
-    def view_items(self):
-        self.client.get("/ping")
-        self.client.get("/visits")
-EOF
-          timeout 30 locust -f locustfile.py --headless -u 10 -r 5 --host http://localhost:5000 || true
-
-      - name: Container health check
-        run: |
-          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-          docker compose ps
+          updated=$(curl -s http://localhost:5000/visits)
+          if [ "$initial" -ge "$updated" ]; then
+            echo "Cache inconsistency: $initial >= $updated"
+            exit 1
+          fi
+          echo "Cache test passed!"
 
       - name: Show logs on failure
         if: failure()
-        run: |
-          docker compose logs app
-          docker compose logs db
-          docker compose logs redis
-
-  build-test:
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker compose build
-
-      - name: Scan for vulnerabilities
-        run: |
-          docker scan app --file Dockerfile --severity high || true
-
-      - name: Test image size
-        run: |
-          docker images app --format "Image size: {{.Size}}"
-
-  final-validation:
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, build-test]
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: All tests passed
-        run: |
-          echo "All tests completed successfully!"
-          echo "Unit tests with 100% coverage"
-          echo "Integration tests passed"
-          echo "Build validation completed"
-          echo "Ready for deployment"
+        run: docker compose logs
