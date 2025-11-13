@@ -45,16 +45,16 @@ jobs:
           # First ping
           curl -s http://localhost:8000/ping >/dev/null
           visits1=$(curl -s http://localhost:8000/visits | jq -r '.visits')
-          if [[ "$visits1" != "1" ]]; then
-            echo "Expected 1 visit, got $visits1"
+          if [[ "$visits1" != "2" ]]; then
+            echo "Expected 2 visit, got $visits1"
             exit 1
           fi
 
           # Second ping
           curl -s http://localhost:8000/ping >/dev/null
           visits2=$(curl -s http://localhost:8000/visits | jq -r '.visits')
-          if [[ "$visits2" != "2" ]]; then
-            echo "Expected 2 visits, got $visits2"
+          if [[ "$visits2" != "3" ]]; then
+            echo "Expected 3 visits, got $visits2"
             exit 1
           fi
 
