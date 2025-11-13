@@ -1,27 +1,27 @@
 services:
-	db:
-		image: postgres:15
-	environment:
-		POSTGRES_PASSWORD: 123
-	volumes:
-		- db_data:/var/lib/postgresql/data
+ db:
+  image: postgres:15
+  environment:
+   POSTGRES_PASSWORD: 123
+  volumes:
+   - db_data:/var/lib/postgresql/data
 		
-	init-db:
-		image: postgres:15
-		depends_on:
-			-db
-		environment:
-			PGPASSWORD: 123
-		volumes:
-			- ./init.sql:/init.sql
-			- ./init-db.sh:/init-db.sh
-		command: ["/init-db.sh"]
+ init-db:
+  image: postgres:15
+  depends_on:
+   -db
+  environment:
+   PGPASSWORD: 123
+  volumes:
+   - ./init.sql:/init.sql
+   - ./init-db.sh:/init-db.sh
+  command: ["/init-db.sh"]
 			
-	app:
-		build: .
-		ports:
-			- "5000:5000"
-		depends_on:
-			- init-db
+ app:
+  build: .
+  ports:
+   - "5000:5000"
+  depends_on:
+   - init-db
 
 			
