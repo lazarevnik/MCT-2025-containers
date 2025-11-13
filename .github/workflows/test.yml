@@ -15,6 +15,19 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Wait for db_init to finish
+        run: |
+          timeout=60
+          while ! docker compose ps --filter status=exited | tail -n 1 | grep -o  "init_db.*Exited (0)"; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "DB Init script did not finish"
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "db_init completed successfully."
+
       - name: Wait for web to be ready
         run: |
           timeout=60
@@ -36,9 +49,21 @@ jobs:
           fi
           echo "Web test passed!"
 
+      - name: Test /visits
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != "1" ]]; then
+            echo "Expected '1', got: $response"
+            exit 1
+          fi
+
       - name: Test PostgreSQL connection
         run: |
           docker compose exec -T db pg_isready -U user -d app
+
+      - name: Test Redis connection
+        run: |
+          docker compose exec -T redis redis-cli ping | grep PONG
 
       - name: Show logs on failure
         if: failure()
