@@ -1,24 +1,4 @@
 services:
-  init-db:
-    image: postgres:15
-    profiles: [prod]
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: pass
-    volumes:
-      - ./db:/init:ro
-    command: >
-      bash -c "
-        until pg_isready -h db -U user -d app; do sleep 1; done;
-        for f in /init/*.sql; do
-          echo \"→ $$f\";
-          psql -h db -U user -d app -f \"$$f\";
-        done;
-        echo 'Init-db finished'
-      "
-
   app:
     build: ./app
     ports:
