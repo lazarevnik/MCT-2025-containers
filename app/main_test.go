@@ -161,7 +161,6 @@ func TestHandlePingDevMode(t *testing.T) {
 		t.Errorf("Failed to count visits: %v", err)
 	}
 
-	// In dev mode, no visit should be recorded
 	if count != 0 {
 		t.Errorf("Expected 0 visits in dev mode, got %d", count)
 	}
