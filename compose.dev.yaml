@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mct
+      POSTGRES_PASSWORD: mctapppass
+      POSTGRES_DB: mct
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mct"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mct-network
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    networks:
+      - mct-network
+
+  init-db:
+    build:
+      context: ./init
+      dockerfile: Dockerfile
+    environment:
+      DB_USER: mct
+      DB_PASSWORD: mctapppass
+      DB_HOST: mct
+      DB_PORT: "5432"
+      DB_NAME: mct
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mct-network
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DB_USER: mct
+      DB_PASSWORD: mctapppass
+      DB_HOST: mct
+      DB_PORT: "5432"
+      DB_NAME: mct
+      REDIS_ADDR: redis:6379
+      ENV: "test"
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - mct-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  mct-network:
+    driver: bridge

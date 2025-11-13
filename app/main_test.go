@@ -97,11 +97,13 @@ func TestHandlePing(t *testing.T) {
 	db = setupTestDB(t)
 	rdb = setupTestRedis(t)
 
-	// Clear test data
 	db.Exec("DELETE FROM visits")
 	rdb.Del(context.Background(), "visits_count")
 
-	os.Setenv("DEV_MODE", "false")
+	err := os.Setenv("ENV", "prod")
+	if err != nil {
+		t.Errorf("Failed to set ENV environment variable: %v", err)
+	}
 
 	req := httptest.NewRequest("GET", "/ping", nil)
 	req.Header.Set("X-Forwarded-For", "192.168.1.1")
@@ -117,7 +119,6 @@ func TestHandlePing(t *testing.T) {
 		t.Errorf("handlePing() body = %q, want %q", w.Body.String(), "pong")
 	}
 
-	// Verify visit was recorded
 	var count int64
 	if err := db.Model(&Visit{}).Count(&count).Error; err != nil {
 		t.Errorf("Failed to count visits: %v", err)
@@ -140,7 +141,10 @@ func TestHandleVisits(t *testing.T) {
 	db.Exec("DELETE FROM visits")
 	rdb.Del(context.Background(), "visits_count")
 
-	os.Setenv("DEV_MODE", "false")
+	err := os.Setenv("ENV", "prod")
+	if err != nil {
+		t.Errorf("Failed to set ENV environment variable: %v", err)
+	}
 
 	// Create some test visits
 	for i := 0; i < 3; i++ {
@@ -207,7 +211,10 @@ func TestCacheConsistency(t *testing.T) {
 	db.Exec("DELETE FROM visits")
 	rdb.Del(context.Background(), "visits_count")
 
-	os.Setenv("DEV_MODE", "false")
+	err := os.Setenv("ENV", "prod")
+	if err != nil {
+		t.Errorf("Failed to set ENV environment variable: %v", err)
+	}
 
 	// Add visits
 	for i := 0; i < 5; i++ {

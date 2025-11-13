@@ -22,15 +22,14 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     exit 1
 fi
 
-PG_PASS="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" -tc \
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" -tc \
     "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'" | grep -q 1 || \
-    PG_PASS="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" \
+    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" \
     -c "CREATE DATABASE $DB_NAME"
 
 echo "Database '$DB_NAME' ready"
 
-# Initialize tables using SQL
-PG_PASS="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<EOF
 CREATE TABLE IF NOT EXISTS visits (
     id SERIAL PRIMARY KEY,
     ip VARCHAR(45) NOT NULL,
