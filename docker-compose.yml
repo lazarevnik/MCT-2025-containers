@@ -1,6 +1,7 @@
 version: '3.8'
 services:
   db:
+    container_name: db
     image: postgres:14.1-alpine
     environment:
       POSTGRES_DB: db
@@ -53,4 +54,4 @@ services:
       POSTGRES_USER: kuzalex
       POSTGRES_PASSWORD: 1234
     ports:
-      - "5000:5000"
+      - "8080:5000"

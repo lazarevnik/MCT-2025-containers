@@ -98,7 +98,7 @@ jobs:
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker exec db pg_isready -U user
 
       - name: Run integration tests
         run: |
