@@ -17,19 +17,7 @@ def get_db_connection():
         dbname=DB_NAME
     )
 
-@app.on_event("startup")
-def create_table():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS visits (
-            id SERIAL PRIMARY KEY,
-            ip TEXT NOT NULL
-        );
-    """)
-    conn.commit()
-    cur.close()
-    conn.close()
+
 
 @app.get("/ping")
 def ping(request: Request):

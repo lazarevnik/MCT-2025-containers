@@ -1,8 +1,20 @@
 version: '3.8'
 
 services:
+  init-db:
+    build: ./
+    command: python init_db.py
+    environment:
+      - DB_HOST=db
+      - DB_USER=postgre
+      - DB_PASSWORD=1111
+      - DB_NAME=visitsdb
+    depends_on:
+      - db
+    restart: "no"
+
   app:
-    build: .
+    build: ./
     ports:
       - "8000:8000"
     environment:
@@ -11,7 +23,8 @@ services:
       - DB_PASSWORD=1111
       - DB_NAME=visitsdb
     depends_on:
-      - db
+      init-db:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   db:
@@ -20,9 +33,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1111
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
 
 volumes:
-  db_data:
+  db_:
