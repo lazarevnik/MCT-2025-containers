@@ -8,6 +8,6 @@ RUN apt-get update && apt-get install -y libpq-dev gcc && \
 
 COPY . .
 
-EXPOSE 8080
+EXPOSE 5000
 
 CMD ["python", "mini_app.py"]

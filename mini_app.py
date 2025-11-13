@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 DB_CONFIG = {
     'dbname': os.getenv('POSTGRES_DB', 'app'),
-    'user': os.getenv('POSTGRES_USER', 'user'),
+    'user': os.getenv('POSTGRES_USER', 'postgres'),
     'password': os.getenv('POSTGRES_PASSWORD', 'password'),
     'host': os.getenv('POSTGRES_HOST', 'db'),
     'port': os.getenv('POSTGRES_PORT', '5432')
@@ -68,6 +68,10 @@ def get_visits_count():
         return 0
 
 init_db()
+
+@app.route('/')
+def home():
+    return 'Welcome to and3rlex mini-app!'
 
 @app.route('/ping')
 def ping():

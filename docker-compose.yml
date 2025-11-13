@@ -4,11 +4,11 @@ services:
   web:
     build: .
     ports:
-      - "5000:80"
+      - "5000:5000"
     environment:
       - FLASK_ENV=development
       - POSTGRES_DB=app
-      - POSTGRES_USER=user
+      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
@@ -19,11 +19,10 @@ services:
     image: postgres:13
     environment:
       - POSTGRES_DB=app
-      - POSTGRES_USER=user
+      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
 
 volumes:
   postgres_data:
