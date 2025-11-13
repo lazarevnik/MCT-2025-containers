@@ -1,0 +1,7 @@
+[project]
+name = "mct-2025-containers"
+version = "0.1.0"
+description = "Simple ping-pong application"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = []
