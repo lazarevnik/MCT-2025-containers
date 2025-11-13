@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: visits_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d visits_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  web:
+    build: .
+    ports:
+      - "5000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/visits_db
