@@ -47,7 +47,7 @@ jobs:
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker exec db pg_isready -U user
 
       - name: Show logs on failure
         if: failure()
