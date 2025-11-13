@@ -36,6 +36,22 @@ jobs:
           fi
           echo "Web test passed!"
 
+      - name: init-db check
+        run: |
+          table_exists=$(docker compose exec -T db \
+            psql -U user -d app -t -c "
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = 'visits'
+            );" | xargs)
+          
+          if [[ "$table_exists" != "t" ]]; then
+            echo "Table 'visits' was not created during initialization"
+            exit 1
+          fi
+          echo "Init-db ended successfully -> db created"
+
       - name: Test PostgreSQL connection
         run: |
           docker compose exec -T db pg_isready -U user -d app
