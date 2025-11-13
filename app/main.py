@@ -38,8 +38,3 @@ async def get_visits():
     cur.close()
     conn.close()
     return f"Visits: {count}\n"
-
-@app.get("/", response_class=PlainTextResponse)
-async def root():
-    return "API работает! Используйте /ping и /visits\n"
-
