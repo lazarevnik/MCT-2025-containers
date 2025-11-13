@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: "mct-2025-monitor"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "fastapi"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["web:80"]
+        labels:
+          service: "web"
+          environment: "production"
+    metrics_path: "/metrics"

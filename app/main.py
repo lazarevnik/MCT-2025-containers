@@ -3,6 +3,7 @@ from typing import Dict, Generator, Optional
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 import redis
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from db import SessionLocal, Visit
 
@@ -142,3 +143,7 @@ def health() -> Dict[str, str]:
     :return: A dictionary indicating the service is healthy.
     """
     return {"status": "ok"}
+
+
+# Setup Prometheus metrics instrumentation
+Instrumentator().instrument(app).expose(app)
