@@ -62,11 +62,11 @@ jobs:
 
       - name: Run database initialization
         env:
-          DB_USER: mct
-          DB_PASSWORD: mctapppass
+          DB_USER: user
+          DB_PASSWORD: password
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: mct
+          DB_NAME: app
         run: |
           bash init/init-db.sh
           if [ $? -eq 0 ]; then
@@ -78,7 +78,7 @@ jobs:
 
       - name: Verify database tables
         env:
-          PGPASSWORD: mctapppass
+          PGPASSWORD: password
         run: |
           psql -h localhost -U mct -d mct -c "\dt" || exit 1
           echo "Database tables verified"
@@ -91,11 +91,11 @@ jobs:
       - name: Run tests with coverage
         working-directory: ./app
         env:
-          DB_USER: mct
-          DB_PASSWORD: mctapppass
+          DB_USER: user
+          DB_PASSWORD: password
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: mct
+          DB_NAME: app
           REDIS_ADDR: localhost:6379
           ENV: prod
         run: |
