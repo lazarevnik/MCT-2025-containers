@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from sqlalchemy import create_engine, Column, Integer, String, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from fastapi.responses import PlainTextResponse
 
 # Получаем данные для подключения к БД из переменных окружения
 DB_USER = os.getenv("DB_USER", "user")
@@ -40,7 +41,7 @@ def ping(request: Request):
     db.add(new_visit)
     db.commit()
     db.close()
-    return 'pong'
+    return PlainTextResponse(content="pong")
 
 @app.get("/visits")
 def get_visits():
