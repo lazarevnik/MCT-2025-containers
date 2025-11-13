@@ -2,7 +2,7 @@ name: Docker Compose Test
 
 on:
   pull_request:
-    branches: [ main test3]
+    branches: [ main ]
 
 jobs:
   test-compose:
@@ -18,17 +18,17 @@ jobs:
           docker compose run --rm init-db
           docker compose up -d app
 
-    - name: Wait for web to be ready
-      run: |
-        timeout=60
-        while ! curl -f http://localhost:8000/ping >/dev/null 2>&1; do
-          ((timeout--))
-          if [ $timeout -eq 0 ]; then
-            echo "Web service failed to start"
-            exit 1
-          fi
-          sleep 1
-        done
+      - name: Wait for web to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:8000/ping >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
 
       - name: Test /ping
         run: |
