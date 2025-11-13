@@ -40,7 +40,7 @@ def ping(request: Request):
     db.add(new_visit)
     db.commit()
     db.close()
-    return "pong"
+    return 'pong'
 
 @app.get("/visits")
 def get_visits():
