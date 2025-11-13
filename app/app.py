@@ -11,9 +11,9 @@ logger = logging.getLogger("app")
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "db"),
-    "user": os.getenv("DB_USER", "amogus"),
+    "user": os.getenv("DB_USER", "user"),
     "password": os.getenv("DB_PASSWORD", "pass"),
-    "dbname": os.getenv("DB_NAME", "abobadb"),
+    "dbname": os.getenv("DB_NAME", "app"),
 }
 
 def connect_db(max_retries=3, delay=1):

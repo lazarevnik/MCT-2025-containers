@@ -4,14 +4,14 @@ services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_USER: amogus
+      POSTGRES_USER: user
       POSTGRES_PASSWORD: pass
-      POSTGRES_DB: abobadb
+      POSTGRES_DB: app
     volumes:
       - dbvol_:/var/lib/postgresql/data
       - ./db:/docker-entrypoint-initdb.d
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U amogus -d abobadb" ]
+      test: [ "CMD-SHELL", "pg_isready -U user -d app" ]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -26,9 +26,9 @@ services:
         condition: service_healthy
     environment:
       DB_HOST: db
-      DB_USER: amogus
+      DB_USER: user
       DB_PASSWORD: pass
-      DB_NAME: abobadb
+      DB_NAME: app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/ping"]
       interval: 5s
