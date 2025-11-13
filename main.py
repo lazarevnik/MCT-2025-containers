@@ -1,22 +1,37 @@
 import os
+import time
 import psycopg2
-from flask import Flask
+from flask import Flask, request
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-DB_HOST = os.getenv('DB_HOST', 'db')
-DB_NAME = os.getenv('DB_NAME', 'visits_db')
-DB_USER = os.getenv('DB_USER', 'postgres')
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'password')
+DB_CONFIG = {
+    'host': os.getenv('DB_HOST', 'db'),
+    'database': os.getenv('DB_NAME', 'visits_db'),
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD', 'password'),
+    'port': os.getenv('DB_PORT', '5432')
+}
+
+def wait_for_db(max_retries=30, delay=2):
+    for i in range(max_retries):
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            conn.close()
+            logger.info("Database is ready!")
+            return True
+        except Exception as e:
+            logger.warning(f"Database not ready (attempt {i+1}/{max_retries}): {e}")
+            time.sleep(delay)
+    logger.error("Database connection failed after all retries")
+    return False
 
 def get_db_connection():
-    conn = psycopg2.connect(
-        host=DB_HOST,
-        database=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD
-    )
-    return conn
+    return psycopg2.connect(**DB_CONFIG)
 
 def init_db():
     try:
@@ -26,17 +41,23 @@ def init_db():
             CREATE TABLE IF NOT EXISTS visits (
                 id SERIAL PRIMARY KEY,
                 ip_address VARCHAR(50),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         conn.commit()
         cur.close()
         conn.close()
-        print("Database initialized successfully")
+        logger.info("Database table created successfully")
     except Exception as e:
-        print(f"Error initializing database: {e}")
+        logger.error(f"Error initializing database: {e}")
+        raise
+
+@app.route('/')
+def home():
+    return 'OK', 200
 
 @app.route('/ping')
 def ping():
-    from flask import request
     client_ip = request.remote_addr
     
     try:
@@ -46,8 +67,10 @@ def ping():
         conn.commit()
         cur.close()
         conn.close()
+        logger.info(f"Saved visit from IP: {client_ip}")
     except Exception as e:
-        print(f"Error saving visit: {e}")
+        logger.error(f"Error saving visit: {e}")
+        return 'Database error', 500
     
     return 'pong'
 
@@ -60,11 +83,33 @@ def visits():
         count = cur.fetchone()[0]
         cur.close()
         conn.close()
+        logger.info(f"Visits count: {count}")
         return str(count)
     except Exception as e:
-        print(f"Error getting visits count: {e}")
+        logger.error(f"Error getting visits count: {e}")
         return '0'
 
+@app.route('/health')
+def health():
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT 1')
+        cur.close()
+        conn.close()
+        return 'OK', 200
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return 'Database connection failed', 500
+
 if __name__ == '__main__':
+    logger.info("Starting Flask application...")
+    
+    if not wait_for_db():
+        logger.error("Failed to connect to database. Exiting.")
+        exit(1)
+    
     init_db()
-    app.run(host='0.0.0.0', port=5000)
+    
+    logger.info("Starting Flask server on port 5000")
+    app.run(host='0.0.0.0', port=5000, debug=False)
