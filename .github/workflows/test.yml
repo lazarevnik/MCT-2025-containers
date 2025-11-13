@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Start services
-        run: docker compose up -d
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
       - name: Wait for web to be ready
         run: |
@@ -26,15 +26,6 @@ jobs:
             fi
             sleep 1
           done
-
-      - name: Test web response
-        run: |
-          response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
-            exit 1
-          fi
-          echo "Web test passed!"
 
       - name: init-db check
         run: |
@@ -51,6 +42,20 @@ jobs:
             exit 1
           fi
           echo "Init-db ended successfully -> db created"
+
+      - name: Test web response
+        run: |
+          response=$(curl -s http://localhost:5000/ping)
+          if [[ "$response" != "pong" ]]; then
+            echo "Expected 'pong', got: $response"
+            exit 1
+          fi
+          echo "Web test passed!"
+      
+      - name: Test prod mode
+        run: |
+          count=$(curl -s http://localhost:5000/visits)
+          [[ "$count" == "1" ]] || { echo "Expected 1 visits, got $count"; exit 1; }
 
       - name: Test PostgreSQL connection
         run: |

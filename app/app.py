@@ -16,6 +16,8 @@ DB_CONFIG = {
     "dbname": os.getenv("DB_NAME", "app"),
 }
 
+ENV = os.getenv("ENV", "prod")
+
 def connect_db(max_retries=3, delay=1):
     for attempt in range(1, max_retries + 1):
         try:
@@ -48,6 +50,8 @@ def ping():
 
 @app.route('/visits')
 def visits():
+    if ENV == "dev":
+        return "-1"
     conn = connect_db()
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM visits")
