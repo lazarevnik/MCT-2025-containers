@@ -18,7 +18,7 @@ services:
       start_period: 10s
 
   init-db:
-    build: ./init-db
+    build: ./init
     environment:
       - DB_HOST=db
       - DB_NAME=visits_db
