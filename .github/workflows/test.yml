@@ -12,9 +12,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: mct
-          POSTGRES_PASSWORD: mctapppass
-          POSTGRES_DB: mct
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: app
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -121,15 +121,15 @@ jobs:
           docker compose -f compose.yaml up -d
           sleep 15
           docker compose -f compose.yaml ps
-          curl -f http://localhost:8080/ping || exit 1
-          curl -f http://localhost:8080/health || exit 1
+          curl -f http://localhost:5000/ping || exit 1
+          curl -f http://localhost:5000/health || exit 1
           docker compose -f compose.yaml down -v
 
       - name: Test Docker Compose - Dev
         run: |
           docker compose -f compose.yaml -f compose.dev.yaml up -d
           sleep 15
-          response=$(curl -s http://localhost:8080/visits)
+          response=$(curl -s http://localhost:5000/visits)
           if [ "$response" != "-1" ]; then
             echo "Dev mode should return -1, got $response"
             docker compose -f compose.yaml -f compose.dev.yaml down -v
