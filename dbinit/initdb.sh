@@ -1,8 +1,12 @@
+if [ ! -z "$(ls -A $PGDATA 2>/dev/null)" ]; then
+	echo initdb.sh: postgres data directory already initialized, exiting.
+	exit 0
+fi
+
 apk add postgresql
 mkdir /run/postgresql
 chown postgres:postgres /run/postgresql
 su -c "
-rm -rf $PGDATA/*
 pg_ctl init -o \"-c listen_addresses='*'\"
 pg_ctl start
 psql <<-EOSQL

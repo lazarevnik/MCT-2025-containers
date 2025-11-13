@@ -9,8 +9,7 @@ dbconn = psycopg.Connection.connect(
             port={DATABASE_PORT}
             dbname={DATABASE_NAME}
             user={DATABASE_USER}
-            password={DATABASE_PASSWORD}
-            connect_timeout={DATABASE_TIMEOUT}"""
+            password={DATABASE_PASSWORD}"""
 )
 cur = dbconn.cursor()
 
@@ -18,6 +17,7 @@ cur = dbconn.cursor()
 @app.route("/ping")
 def ping():
     cur.execute(f"INSERT INTO {TABLE_NAME}(data) VALUES ('');")
+    dbconn.commit()
     return "pong"
 
 
