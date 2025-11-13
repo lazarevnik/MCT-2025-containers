@@ -55,7 +55,7 @@ jobs:
 
       - name: Run tests
         run: |
-          docker-compose exec -T web python -m pytest test_app.py -v --cov=mini_app --cov-report=term-missing --cov-fail-under=60
+          docker-compose exec -T web python -m pytest tests.py -v --cov=mini_app --cov-report=term-missing --cov-fail-under=60
 
       - name: Show logs on failure
         if: failure()
