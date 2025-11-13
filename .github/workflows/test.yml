@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Start services
-        run: docker compose up -d
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
       - name: Wait for web to be ready
         run: |
@@ -27,6 +27,22 @@ jobs:
             sleep 1
           done
 
+      - name: init-db check
+        run: |
+          table_exists=$(docker compose exec -T db \
+            psql -U user -d app -t -c "
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = 'visits'
+            );" | xargs)
+          
+          if [[ "$table_exists" != "t" ]]; then
+            echo "Table 'visits' was not created during initialization"
+            exit 1
+          fi
+          echo "Init-db ended successfully -> db created"
+
       - name: Test web response
         run: |
           response=$(curl -s http://localhost:5000/ping)
@@ -35,6 +51,11 @@ jobs:
             exit 1
           fi
           echo "Web test passed!"
+      
+      - name: Test prod mode
+        run: |
+          count=$(curl -s http://localhost:5000/visits)
+          [[ "$count" == "1" ]] || { echo "Expected 1 visits, got $count"; exit 1; }
 
       - name: Test PostgreSQL connection
         run: |

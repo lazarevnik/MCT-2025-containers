@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: app
+    volumes:
+      - dbvol_:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d app" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  init-db:
+    image: postgres:15
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: pass
+    volumes:
+      - ./db:/init:ro
+    command: >
+      bash -c "
+        until pg_isready -h db -U user -d app; do sleep 1; done;
+        for f in /init/*.sql; do
+          echo \"→ $$f\";
+          psql -h db -U user -d app -f \"$$f\";
+        done;
+        echo 'Init-db finished'
+      "
+
+volumes:
+  dbvol_:
