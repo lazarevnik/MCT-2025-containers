@@ -16,7 +16,7 @@ services:
       - mct-network
 
   redis:
-    image: redis:9-alpine
+    image: redis:7-alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
