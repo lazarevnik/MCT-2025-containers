@@ -51,7 +51,7 @@ jobs:
 
       - name: Test PostgreSQL data persistence
         run: |
-          docker compose exec -T db psql -U user -d visitsdb -c "SELECT COUNT(*) FROM visits;" | grep -q "1"
+          docker compose exec -T db psql -U postgres -d visitsdb -c "SELECT COUNT(*) FROM visits;" | grep -q "1"
 
       - name: Show logs on failure
         if: failure()
