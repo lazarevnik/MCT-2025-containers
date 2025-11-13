@@ -11,25 +11,101 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Build and test
+    - name: Build and start containers
       run: |
         docker-compose up -d
-        sleep 10
+        echo "Containers started, waiting for services to be ready..."
         
+    - name: Wait for services to be ready
+      run: |
+        timeout=60
+        while ! docker-compose exec -T db pg_isready -U postgres -d visits_db; do
+          ((timeout--))
+          if [ $timeout -eq 0 ]; then
+            echo "Database failed to start"
+            docker-compose logs db
+            exit 1
+          fi
+          echo "Waiting for database... ($timeout seconds left)"
+          sleep 2
+        done
+        echo "Database is ready!"
+        
+        echo "Waiting for database initialization..."
+        timeout=60
+        while [ "$(docker-compose ps init-db --status | tail -1)" != "exited" ]; do
+          ((timeout--))
+          if [ $timeout -eq 0 ]; then
+            echo "Database initialization timed out"
+            docker-compose logs init-db
+            exit 1
+          fi
+          echo "Waiting for init-db... ($timeout seconds left)"
+          sleep 2
+        done
+        
+        init_exit_code=$(docker-compose ps init-db --format json | jq -r '.[] | .ExitCode')
+        if [ "$init_exit_code" != "0" ]; then
+          echo "❌ Database initialization failed with exit code $init_exit_code"
+          docker-compose logs init-db
+          exit 1
+        fi
+        echo "Database initialization completed successfully!"
+        
+        timeout=60
+        while ! curl -f http://localhost:5000/health >/dev/null 2>&1; do
+          ((timeout--))
+          if [ $timeout -eq 0 ]; then
+            echo "Web service failed to start"
+            docker-compose logs web
+            exit 1
+          fi
+          echo "Waiting for web service... ($timeout seconds left)"
+          sleep 2
+        done
+        echo "Web service is ready!"
+        
+    - name: Run tests
+      run: |
+        echo "Testing /ping endpoint..."
         response1=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ping)
         if [ "$response1" != "200" ]; then
           echo "FAIL: /ping returned $response1"
+          docker-compose logs web
           exit 1
         fi
+        echo "/ping returned $response1"
         
-        # Тестируем /visits
+        echo "Testing /visits endpoint..."
         response2=$(curl -s http://localhost:5000/visits)
         if [ "$response2" != "1" ]; then
-          echo "FAIL: /visits returned $response2, expected 1"
+          echo "FAIL: /visits returned '$response2', expected '1'"
+          docker-compose logs web
           exit 1
         fi
+        echo "/visits returned $response2"
         
-        echo "SUCCESS: All tests passed"
+        echo "Testing multiple calls..."
+        curl -s http://localhost:5000/ping > /dev/null
+        curl -s http://localhost:5000/ping > /dev/null
+        response3=$(curl -s http://localhost:5000/visits)
+        if [ "$response3" != "3" ]; then
+          echo "FAIL: After 3 pings, /visits returned '$response3', expected '3'"
+          exit 1
+        fi
+        echo "Multiple calls test passed: visits count = $response3"
+        
+        echo "All tests passed successfully!"
+        
+    - name: Show logs if tests fail
+      if: failure()
+      run: |
+        echo "=== Init DB Logs ==="
+        docker-compose logs init-db
+        echo "=== Web Service Logs ==="
+        docker-compose logs web
+        echo "=== Database Logs ==="
+        docker-compose logs db
         
     - name: Cleanup
       if: always()
