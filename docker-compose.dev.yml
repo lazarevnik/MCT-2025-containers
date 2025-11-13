@@ -1,0 +1,57 @@
+version: '3.8'
+services:
+  db:
+    container_name: db
+    image: postgres:14.1-alpine
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: kuzalex
+      POSTGRES_PASSWORD: 1234
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "kuzalex" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  migrator:
+    build: ./migrator
+    depends_on:
+      - db
+    restart: on-failure
+    environment:
+      POSTGRES_HOST: db:5432
+      POSTGRES_DB: db
+      POSTGRES_USER: kuzalex
+      POSTGRES_PASSWORD: 1234
+
+  redis:
+    image: redis:7-alpine
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}", "--save", "60", "1" ]
+    container_name: redis_cache
+    environment:
+      - REDIS_PASSWORD=1234
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "$REDIS_PASSWORD", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+  app:
+    build: .
+    depends_on:
+      - db
+      - migrator
+      - redis
+    restart: always
+    environment:
+      ENV: dev
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: 1234
+      POSTGRES_HOST: db:5432
+      POSTGRES_DB: db
+      POSTGRES_USER: kuzalex
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5000:5000"
