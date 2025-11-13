@@ -39,8 +39,8 @@ jobs:
       - name: Test cache response
         run: |
           response=$(curl -s http://localhost:5000/visits_cache)
-          if [[ "$response" != "-1" ]]; then
-            echo "Expected a numeric -1, got: $response"
+          if [[ "$response" != "1" ]]; then
+            echo "Expected a numeric 1, got: $response"
             exit 1
           fi
           echo "Cache test passed!"
