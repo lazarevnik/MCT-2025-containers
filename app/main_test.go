@@ -1,4 +1,4 @@
-package app
+package main
 
 import (
 	"context"
@@ -60,6 +60,12 @@ func TestGetClientIP(t *testing.T) {
 			expected:   "192.168.1.1",
 		},
 		{
+			name:       "X-Forwarded-For with multiple IPs",
+			headers:    map[string]string{"X-Forwarded-For": "192.168.1.1, 10.0.0.1"},
+			remoteAddr: "127.0.0.1:8080",
+			expected:   "192.168.1.1",
+		},
+		{
 			name:       "X-Real-IP header",
 			headers:    map[string]string{"X-Real-IP": "10.0.0.1"},
 			remoteAddr: "127.0.0.1:8080",
@@ -90,10 +96,6 @@ func TestGetClientIP(t *testing.T) {
 }
 
 func TestHandlePing(t *testing.T) {
-	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
-		t.Skip("Skipping integration tests")
-	}
-
 	db = setupTestDB(t)
 	rdb = setupTestRedis(t)
 
@@ -129,11 +131,42 @@ func TestHandlePing(t *testing.T) {
 	}
 }
 
-func TestHandleVisits(t *testing.T) {
-	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
-		t.Skip("Skipping integration tests")
+func TestHandlePingDevMode(t *testing.T) {
+	db = setupTestDB(t)
+	rdb = setupTestRedis(t)
+
+	db.Exec("DELETE FROM visits")
+
+	err := os.Setenv("ENV", "dev")
+	if err != nil {
+		t.Errorf("Failed to set ENV environment variable: %v", err)
 	}
 
+	req := httptest.NewRequest("GET", "/ping", nil)
+	req.Header.Set("X-Forwarded-For", "192.168.1.1")
+	w := httptest.NewRecorder()
+
+	handlePing(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("handlePing() in dev mode status code = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if w.Body.String() != "pong" {
+		t.Errorf("handlePing() in dev mode body = %q, want %q", w.Body.String(), "pong")
+	}
+
+	var count int64
+	if err := db.Model(&Visit{}).Count(&count).Error; err != nil {
+		t.Errorf("Failed to count visits: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected 0 visits in dev mode, got %d", count)
+	}
+}
+
+func TestHandleVisits(t *testing.T) {
 	db = setupTestDB(t)
 	rdb = setupTestRedis(t)
 
@@ -146,7 +179,6 @@ func TestHandleVisits(t *testing.T) {
 		t.Errorf("Failed to set ENV environment variable: %v", err)
 	}
 
-	// Create some test visits
 	for i := 0; i < 3; i++ {
 		db.Create(&Visit{IP: "192.168.1.1"})
 	}
@@ -164,7 +196,6 @@ func TestHandleVisits(t *testing.T) {
 		t.Errorf("handleVisits() body = %q, want %q", w.Body.String(), "3")
 	}
 
-	// Verify cache was set
 	val, err := rdb.Get(context.Background(), "visits_count").Result()
 	if err != nil {
 		t.Errorf("Cache not set: %v", err)
@@ -176,14 +207,14 @@ func TestHandleVisits(t *testing.T) {
 }
 
 func TestHandleVisitsDevMode(t *testing.T) {
-	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
-		t.Skip("Skipping integration tests")
-	}
-
 	db = setupTestDB(t)
 	rdb = setupTestRedis(t)
 
-	os.Setenv("DEV_MODE", "true")
+	err := os.Setenv("ENV", "dev")
+	if err != nil {
+		t.Errorf("Failed to set ENV environment variable: %v", err)
+		return
+	}
 
 	req := httptest.NewRequest("GET", "/visits", nil)
 	w := httptest.NewRecorder()
@@ -199,11 +230,67 @@ func TestHandleVisitsDevMode(t *testing.T) {
 	}
 }
 
-func TestCacheConsistency(t *testing.T) {
-	if os.Getenv("SKIP_INTEGRATION_TESTS") == "true" {
-		t.Skip("Skipping integration tests")
+func TestHandleVisitsCacheMiss(t *testing.T) {
+	db = setupTestDB(t)
+	rdb = setupTestRedis(t)
+
+	db.Exec("DELETE FROM visits")
+	rdb.Del(context.Background(), "visits_count")
+
+	err := os.Setenv("ENV", "prod")
+	if err != nil {
+		t.Errorf("Failed to set ENV environment variable: %v", err)
 	}
 
+	// Create test visits
+	for i := 0; i < 2; i++ {
+		db.Create(&Visit{IP: "10.0.0.1"})
+	}
+
+	req := httptest.NewRequest("GET", "/visits", nil)
+	w := httptest.NewRecorder()
+
+	handleVisits(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("handleVisits() cache miss status code = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if w.Body.String() != "2" {
+		t.Errorf("handleVisits() cache miss body = %q, want %q", w.Body.String(), "2")
+	}
+}
+
+func TestHandleVisitsCacheHit(t *testing.T) {
+	db = setupTestDB(t)
+	rdb = setupTestRedis(t)
+
+	db.Exec("DELETE FROM visits")
+	rdb.Del(context.Background(), "visits_count")
+
+	err := os.Setenv("ENV", "prod")
+	if err != nil {
+		t.Errorf("Failed to set ENV environment variable: %v", err)
+	}
+
+	// Set cache directly
+	rdb.Set(context.Background(), "visits_count", 42, 0)
+
+	req := httptest.NewRequest("GET", "/visits", nil)
+	w := httptest.NewRecorder()
+
+	handleVisits(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("handleVisits() cache hit status code = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if w.Body.String() != "42" {
+		t.Errorf("handleVisits() cache hit body = %q, want %q", w.Body.String(), "42")
+	}
+}
+
+func TestCacheConsistency(t *testing.T) {
 	db = setupTestDB(t)
 	rdb = setupTestRedis(t)
 
@@ -237,5 +324,40 @@ func TestCacheConsistency(t *testing.T) {
 
 	if w1.Body.String() != "5" {
 		t.Errorf("Expected 5 visits, got %q", w1.Body.String())
+	}
+}
+
+func TestHealthEndpoint(t *testing.T) {
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+
+	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, err := fmt.Fprint(w, "ok")
+		if err != nil {
+			return
+		}
+	}).ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("health endpoint status code = %d, want %d", w.Code, http.StatusOK)
+	}
+
+	if w.Body.String() != "ok" {
+		t.Errorf("health endpoint body = %q, want %q", w.Body.String(), "ok")
+	}
+}
+
+func TestVisitStructure(t *testing.T) {
+	visit := Visit{
+		IP: "192.168.1.1",
+	}
+
+	if visit.TableName() != "visits" {
+		t.Errorf("Visit.TableName() = %q, want %q", visit.TableName(), "visits")
+	}
+
+	if visit.IP != "192.168.1.1" {
+		t.Errorf("Visit.IP = %q, want %q", visit.IP, "192.168.1.1")
 	}
 }

@@ -1,4 +1,4 @@
-package app
+package main
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
@@ -19,9 +20,13 @@ var (
 )
 
 type Visit struct {
-	ID        uint   `gorm:"primaryKey"`
-	IP        string `gorm:"index"`
-	CreatedAt int64  `gorm:"autoCreateTime:milli"`
+	Id        uint      `gorm:"primaryKey;column:id"`
+	IP        string    `gorm:"column:ip"`
+	CreatedAt time.Time `gorm:"autoCreateTime;column:created_at"`
+}
+
+func (Visit) TableName() string {
+	return "visits"
 }
 
 func init() {
@@ -50,7 +55,7 @@ func init() {
 }
 
 func handlePing(w http.ResponseWriter, r *http.Request) {
-	devMode := os.Getenv("DEV_MODE") == "true"
+	devMode := os.Getenv("ENV") != "prod"
 
 	ip := getClientIP(r)
 
@@ -58,6 +63,7 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 		visit := Visit{IP: ip}
 		if err := db.Create(&visit).Error; err != nil {
 			http.Error(w, "Database error", http.StatusInternalServerError)
+			fmt.Printf("Error creating visit: %v\n", err)
 			return
 		}
 
@@ -98,6 +104,7 @@ func handleVisits(w http.ResponseWriter, r *http.Request) {
 	var count int64
 	if err := db.Model(&Visit{}).Count(&count).Error; err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
+		fmt.Printf("Error counting visits: %v\n", err)
 		return
 	}
 

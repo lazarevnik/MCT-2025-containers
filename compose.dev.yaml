@@ -1,14 +1,15 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: db
     environment:
-      POSTGRES_USER: mct
-      POSTGRES_PASSWORD: mctapppass
-      POSTGRES_DB: mct
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: app
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mct"]
+      test: ["CMD-SHELL", "pg_isready -U user"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -31,12 +33,13 @@ services:
     build:
       context: ./init
       dockerfile: Dockerfile
+    container_name: init-db
     environment:
-      DB_USER: mct
-      DB_PASSWORD: mctapppass
-      DB_HOST: mct
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_HOST: db
       DB_PORT: "5432"
-      DB_NAME: mct
+      DB_NAME: app
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,16 +50,17 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
+    container_name: web
     ports:
-      - "8080:8080"
+      - "5000:8080"
     environment:
-      DB_USER: mct
-      DB_PASSWORD: mctapppass
-      DB_HOST: mct
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_HOST: db
       DB_PORT: "5432"
-      DB_NAME: mct
+      DB_NAME: app
       REDIS_ADDR: redis:6379
-      ENV: "test"
+      ENV: "dev"
     depends_on:
       init-db:
         condition: service_completed_successfully

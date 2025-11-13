@@ -80,7 +80,7 @@ jobs:
         env:
           PGPASSWORD: password
         run: |
-          psql -h localhost -U mct -d mct -c "\dt" || exit 1
+          psql -h localhost -U user -d app -c "\dt" || exit 1
           echo "Database tables verified"
 
       - name: Check Redis connectivity
