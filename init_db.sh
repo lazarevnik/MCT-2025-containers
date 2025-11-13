@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "Надо ждать...."
-until ISready - h db -U postgres; do
+until pg_isready - h db -U postgres; do
 	sleep 1
 done
 echo "Инициализируем базу данных"
