@@ -2,6 +2,6 @@ services:
     server:
         build: .
         ports:
-            - "8000:8000"
+            - "5000:80"
         environment:
             - APP_MODE=DEV
