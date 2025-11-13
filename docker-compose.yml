@@ -5,7 +5,6 @@ services:
    POSTGRES_PASSWORD: 123
   volumes:
    - db_data:/var/lib/postgresql/data
-		
  init-db:
   image: postgres:15
   depends_on:
