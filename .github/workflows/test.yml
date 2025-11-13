@@ -8,38 +8,132 @@ jobs:
   test-compose:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: app
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose up -d
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
 
-      - name: Wait for web to be ready
+      - name: Install system dependencies
         run: |
-          timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
-            ((timeout--))
-            if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
-              exit 1
-            fi
-            sleep 1
-          done
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client redis-tools
 
-      - name: Test web response
+      - name: Download dependencies
+        working-directory: ./app
+        run: go mod download
+
+      - name: Check database initialization script
         run: |
-          response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
+          if [ ! -f "init/init-db.sh" ]; then
+            echo "Database initialization script not found"
             exit 1
           fi
-          echo "Web test passed!"
+          chmod +x init/init-db.sh
+          echo "Database initialization script verified"
 
-      - name: Test PostgreSQL connection
+      - name: Run database initialization
+        env:
+          DB_USER: user
+          DB_PASSWORD: password
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: app
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          bash init/init-db.sh
+          if [ $? -eq 0 ]; then
+            echo "Database initialization successful"
+          else
+            echo "Database initialization failed"
+            exit 1
+          fi
 
-      - name: Show logs on failure
-        if: failure()
-        run: docker compose logs
+      - name: Verify database tables
+        env:
+          PGPASSWORD: password
+        run: |
+          psql -h localhost -U user -d app -c "\dt" || exit 1
+          echo "Database tables verified"
+
+      - name: Check Redis connectivity
+        run: |
+          redis-cli -h localhost ping || exit 1
+          echo "Redis is running"
+
+      - name: Run tests with coverage
+        working-directory: ./app
+        env:
+          DB_USER: user
+          DB_PASSWORD: password
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: app
+          REDIS_ADDR: localhost:6379
+          ENV: prod
+        run: |
+          go test -v -coverprofile=coverage.out -covermode=atomic ./...
+          coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: $coverage%"
+          if (( $(echo "$coverage < 60" | bc -l) )); then
+            echo "Coverage $coverage% is below 60%"
+            exit 1
+          fi
+          echo "Coverage $coverage% meets requirement (≥60%)"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker images
+        run: |
+          docker build -t devops-app:test ./app
+          docker build -t devops-init:test ./init
+
+      - name: Test Docker Compose - Prod
+        run: |
+          docker compose -f compose.yaml up -d
+          sleep 15
+          docker compose -f compose.yaml ps
+          curl -f http://localhost:5000/ping || exit 1
+          curl -f http://localhost:5000/health || exit 1
+          docker compose -f compose.yaml down -v
+
+      - name: Test Docker Compose - Dev
+        run: |
+          docker compose -f compose.yaml -f compose.dev.yaml up -d
+          sleep 15
+          response=$(curl -s http://localhost:5000/visits)
+          if [ "$response" != "-1" ]; then
+            echo "Dev mode should return -1, got $response"
+            docker compose -f compose.yaml -f compose.dev.yaml down -v
+            exit 1
+          fi
+          echo "Dev mode working correctly"
+          docker compose -f compose.yaml -f compose.dev.yaml down -v
