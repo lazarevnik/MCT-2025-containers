@@ -46,7 +46,7 @@ jobs:
         
         init_exit_code=$(docker-compose ps init-db --format json | jq -r '.[] | .ExitCode')
         if [ "$init_exit_code" != "0" ]; then
-          echo "❌ Database initialization failed with exit code $init_exit_code"
+          echo "Database initialization failed with exit code $init_exit_code"
           docker-compose logs init-db
           exit 1
         fi
