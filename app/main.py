@@ -28,6 +28,10 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+@app.get("/")
+def read_root():
+    return {"status": "ok"}
+
 @app.get("/ping")
 def ping(request: Request):
     db = SessionLocal()
