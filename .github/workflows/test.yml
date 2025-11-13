@@ -88,6 +88,9 @@ jobs:
         run: |
           response=$(curl -s http://localhost:5000/visits_cache)
           if [[ "$response" !=~ ^[0-9]+$ ]]; then
+            echo "Cache test passed!"
+            exit 0
+          else
             echo "Expected a numeric response, got: $response"
             exit 1
           fi
