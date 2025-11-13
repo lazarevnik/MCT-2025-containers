@@ -11,8 +11,11 @@ services:
       - DB_NAME=visits_db
       - DB_USER=postgres
       - DB_PASSWORD=password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       - db
+      - redis
     restart: unless-stopped
 
   db:
@@ -24,6 +27,10 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
     restart: unless-stopped
 
 volumes:
