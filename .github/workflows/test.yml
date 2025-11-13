@@ -40,6 +40,18 @@ jobs:
         run: |
           docker compose exec -T db pg_isready -U user -d app
 
+      - name: Test cache response
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" =~ ^[0-9]+$ ]]; then
+            echo "Numeric test passed!"
+            exit 0
+          else
+            echo "Expected a numeric response, got: $response"
+            exit 1
+          fi
+          echo "Numeric test passed!"
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
