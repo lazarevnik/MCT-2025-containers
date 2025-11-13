@@ -37,10 +37,6 @@ def get_db_connection():
 def get_redis_connection():
     return redis.Redis(**REDIS_CONFIG)
 
-@app.get("/")
-def root():
-    return {"status": "ok"}
-
 @app.get("/ping", response_class=PlainTextResponse)
 def ping(request: Request):
     client_ip = request.client.host
@@ -59,7 +55,7 @@ def get_visits():
     r = get_redis_connection()
     cached_count = r.get('visits_count')
     if cached_count:
-        return cached_cound
+        return cached_count
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM visits")
