@@ -5,16 +5,16 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 DB_HOST = os.getenv("DB_HOST", "db")
 DB_PORT = os.getenv("DB_PORT", "5432")
-DB_ADMIN_USER = "postgres"
-DB_ADMIN_PASSWORD = "postgres"
+DB_USER = "user"
+DB_PASSWORD = "password"
 DB_NAME = os.getenv("DB_NAME", "app")
 
 for attempt in range(30):
     try:
         conn = psycopg2.connect(
             host=DB_HOST, port=DB_PORT,
-            user=DB_ADMIN_USER, password=DB_ADMIN_PASSWORD,
-            dbname="postgres"
+            user=DB_USER, password=DB_PASSWORD,
+            dbname=DB_NAME
         )
         conn.close()
         print("PostgreSQL is reachable.")
@@ -28,19 +28,10 @@ else:
 
 conn = psycopg2.connect(
     host=DB_HOST, port=DB_PORT,
-    user=DB_ADMIN_USER, password=DB_ADMIN_PASSWORD,
-    dbname="postgres"
+    user=DB_USER, password=DB_PASSWORD,
+    dbname=DB_NAME
 )
 conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-cur = conn.cursor()
-
-cur.close()
-conn.close()
-
-conn = psycopg2.connect(
-    host=DB_HOST, port=DB_PORT,
-    user="user", password="password", dbname=DB_NAME
-)
 cur = conn.cursor()
 cur.execute("""
     CREATE TABLE IF NOT EXISTS visits (
