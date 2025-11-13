@@ -31,6 +31,19 @@ jobs:
         done
         echo "Database is ready!"
         
+        timeout=60
+        while ! docker-compose exec -T redis redis-cli ping | grep -q PONG; do
+          ((timeout--))
+          if [ $timeout -eq 0 ]; then
+            echo "Redis failed to start"
+            docker-compose logs redis
+            exit 1
+          fi
+          echo "Waiting for Redis... ($timeout seconds left)"
+          sleep 2
+        done
+        echo "Redis is ready!"
+        
         echo "Waiting for database initialization..."
         timeout=60
         while [ "$(docker-compose ps init-db --status | tail -1)" != "exited" ]; do
@@ -67,7 +80,11 @@ jobs:
         
     - name: Run tests
       run: |
-        echo "Testing /ping endpoint..."
+        echo "Testing cache functionality..."
+        
+        curl -s http://localhost:5000/cache/clear
+        
+        echo "1. Testing /ping endpoint..."
         response1=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ping)
         if [ "$response1" != "200" ]; then
           echo "FAIL: /ping returned $response1"
@@ -76,7 +93,7 @@ jobs:
         fi
         echo "/ping returned $response1"
         
-        echo "Testing /visits endpoint..."
+        echo "2. Testing /visits endpoint (should use cache)..."
         response2=$(curl -s http://localhost:5000/visits)
         if [ "$response2" != "1" ]; then
           echo "FAIL: /visits returned '$response2', expected '1'"
@@ -85,21 +102,49 @@ jobs:
         fi
         echo "/visits returned $response2"
         
-        echo "Testing multiple calls..."
-        curl -s http://localhost:5000/ping > /dev/null
-        curl -s http://localhost:5000/ping > /dev/null
-        response3=$(curl -s http://localhost:5000/visits)
-        if [ "$response3" != "3" ]; then
-          echo "FAIL: After 3 pings, /visits returned '$response3', expected '3'"
+        echo "3. Testing /visits/db endpoint (direct from DB)..."
+        response3=$(curl -s http://localhost:5000/visits/db)
+        if [ "$response3" != "1" ]; then
+          echo "FAIL: /visits/db returned '$response3', expected '1'"
+          docker-compose logs web
           exit 1
         fi
-        echo "Multiple calls test passed: visits count = $response3"
+        echo "/visits/db returned $response3"
         
-        echo "All tests passed successfully!"
+        echo "4. Testing cache consistency..."
+        curl -s http://localhost:5000/ping > /dev/null
+        curl -s http://localhost:5000/ping > /dev/null
+        
+        cache_count=$(curl -s http://localhost:5000/visits)
+        db_count=$(curl -s http://localhost:5000/visits/db)
+        
+        if [ "$cache_count" != "$db_count" ]; then
+          echo "FAIL: Cache inconsistency! Cache: $cache_count, DB: $db_count"
+          exit 1
+        fi
+        echo "Cache consistency verified: $cache_count = $db_count"
+        
+        if [ "$cache_count" != "3" ]; then
+          echo "FAIL: After 3 pings, count returned '$cache_count', expected '3'"
+          exit 1
+        fi
+        echo "Multiple calls test passed: visits count = $cache_count"
+        
+        echo "5. Testing cache update endpoint..."
+        update_response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/cache/update)
+        if [ "$update_response" != "200" ]; then
+          echo "FAIL: /cache/update returned $update_response"
+          exit 1
+        fi
+        echo "Cache update endpoint works"
+        
+        echo "All cache tests passed successfully!"
         
     - name: Show logs if tests fail
       if: failure()
       run: |
+        echo "=== Redis Logs ==="
+        docker-compose logs redis
         echo "=== Init DB Logs ==="
         docker-compose logs init-db
         echo "=== Web Service Logs ==="
