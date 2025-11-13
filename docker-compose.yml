@@ -53,4 +53,4 @@ services:
       POSTGRES_USER: kuzalex
       POSTGRES_PASSWORD: 1234
     ports:
-      - "8080:5000"
+      - "5000:5000"
