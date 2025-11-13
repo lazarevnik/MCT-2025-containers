@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: amogus
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: abobadb
+    volumes:
+      - dbvol_/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_USER: user
+      DB_PASSWORD: pass
+      DB_NAME: appdb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  dbvol_
