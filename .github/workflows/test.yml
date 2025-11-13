@@ -2,7 +2,7 @@ name: Docker Compose Test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test-compose:
@@ -12,13 +12,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+
+      - name: Run unit tests with coverage
+        run: |
+          cd app
+          pytest --cov=. --cov-report=term --cov-report=xml --cov-fail-under=60
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          REDIS_URL: "redis://localhost:6379/0"
+
+      - name: Upload coverage report
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./app/coverage.xml
+          fail_ci_if_error: false
+
       - name: Start services
-        run: docker compose up -d
+        run: docker compose -f docker-compose.yml up -d
 
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:8000/health >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
@@ -29,16 +55,142 @@ jobs:
 
       - name: Test web response
         run: |
-          response=$(curl -s http://localhost:5000/ping)
+          response=$(curl -s http://localhost:8000/ping | jq -r .)
           if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
+            echo "Expected \"pong\", got: $response"
             exit 1
           fi
           echo "Web test passed!"
 
+      - name: Verify DB init completed successfully
+        run: |
+          id=$(docker compose ps -aq db-init)
+          if [ -z "$id" ]; then
+            echo "db-init container not found"
+            exit 1
+          fi
+          code=$(docker inspect -f '{{.State.ExitCode}}' "$id")
+          echo "db-init exit code: $code"
+          if [ "$code" -ne 0 ]; then
+            echo "db-init failed"
+            exit 1
+          fi
+
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T db pg_isready -U user -d mydatabase
+
+      - name: Verify Redis is running
+        run: |
+          status=$(docker compose ps redis --format json | jq -r 'if (type=="array") then .[0].State else .State end')
+          echo "Redis state: $status"
+          if [[ "$status" != "running" ]]; then
+            echo "Redis is not running"
+            exit 1
+          fi
+
+      - name: Test Redis connection
+        run: |
+          docker compose exec -T redis redis-cli ping
+
+      - name: Test production visits endpoint
+        run: |
+          # Call ping to create visits
+          curl -s http://localhost:8000/ping
+          curl -s http://localhost:8000/ping
+
+          # Check visits count (should be >= 2)
+          visits=$(curl -s http://localhost:8000/visits | jq -r '.visits')
+          echo "Production visits count: $visits"
+          if [ "$visits" -lt 2 ]; then
+            echo "Expected visits >= 2, got: $visits"
+            exit 1
+          fi
+
+      - name: Verify Prometheus is running
+        run: |
+          status=$(docker compose ps prometheus --format json | jq -r 'if (type=="array") then .[0].State else .State end')
+          echo "Prometheus state: $status"
+          if [[ "$status" != "running" ]]; then
+            echo "Prometheus is not running"
+            exit 1
+          fi
+
+      - name: Test Prometheus metrics endpoint
+        run: |
+          # Check that Prometheus is accessible
+          curl -f http://localhost:9090/-/healthy || exit 1
+          
+          # Check that FastAPI metrics are being scraped
+          timeout=30
+          while true; do
+            metrics=$(curl -s http://localhost:8000/metrics)
+            if echo "$metrics" | grep -q "http_requests_total"; then
+              echo "Metrics endpoint is working"
+              break
+            fi
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Metrics not found after 30 seconds"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Verify Grafana is running
+        run: |
+          status=$(docker compose ps grafana --format json | jq -r 'if (type=="array") then .[0].State else .State end')
+          echo "Grafana state: $status"
+          if [[ "$status" != "running" ]]; then
+            echo "Grafana is not running"
+            exit 1
+          fi
+
+      - name: Test Grafana health
+        run: |
+          # Wait for Grafana to be ready
+          timeout=30
+          while ! curl -f http://localhost:3000/api/health >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Grafana failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "Grafana is healthy"
+
+      - name: Stop production services
+        run: docker compose -f docker-compose.yml down
+
+      - name: Test dev environment
+        run: |
+          # Start dev environment
+          docker compose -f docker-compose.dev.yml up -d
+
+          # Wait for service
+          timeout=30
+          while ! curl -f http://localhost:8000/health >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Dev web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Test that /visits returns -1 in dev mode
+          visits=$(curl -s http://localhost:8000/visits | jq -r '.visits')
+          echo "Dev mode visits: $visits"
+          if [ "$visits" != "-1" ]; then
+            echo "Expected -1 in dev mode, got: $visits"
+            exit 1
+          fi
+
+          echo "Dev environment test passed!"
+
+          # Cleanup
+          docker compose -f docker-compose.dev.yml down
 
       - name: Show logs on failure
         if: failure()

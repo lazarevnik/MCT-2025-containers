@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:80"
+    environment:
+      - DEV_MODE=true
+      # No DATABASE_URL or REDIS_URL needed in dev mode
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          python -c "import sys,urllib.request; sys.exit(0) if urllib.request.urlopen('http://localhost:80/health').getcode()==200 else sys.exit(1)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
