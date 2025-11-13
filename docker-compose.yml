@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   app:
     build: .
@@ -10,8 +12,7 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=password
     depends_on:
-      db-init:
-        condition: service_completed_successfully
+      - db
     restart: unless-stopped
 
   db:
@@ -22,35 +23,8 @@ services:
       - POSTGRES_PASSWORD=password
     volumes:
       - db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d visits_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
-
-  db-init:
-    image: postgres:13
-    environment:
-      - PGHOST=db
-      - PGPORT=5432
-      - PGDATABASE=visits_db
-      - PGUSER=postgres
-      - PGPASSWORD=password
-    depends_on:
-      db:
-        condition: service_healthy
-    command: >
-      sh -c "
-        until pg_isready -h db -p 5432 -U postgres; do
-          echo 'Waiting for database to be ready...';
-          sleep 2;
-        done;
-        echo 'Database is ready, running init script...';
-        psql -c 'CREATE TABLE IF NOT EXISTS visits (id SERIAL PRIMARY KEY, ip_address VARCHAR(45) NOT NULL, visit_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP);';
-        echo 'Init script completed successfully';
-      "
-    restart: "no"
 
 volumes:
   db_data:
