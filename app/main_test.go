@@ -180,7 +180,6 @@ func TestHandleVisits(t *testing.T) {
 		t.Errorf("Failed to set ENV environment variable: %v", err)
 	}
 
-	// Create some test visits
 	for i := 0; i < 3; i++ {
 		db.Create(&Visit{IP: "192.168.1.1"})
 	}
@@ -198,7 +197,6 @@ func TestHandleVisits(t *testing.T) {
 		t.Errorf("handleVisits() body = %q, want %q", w.Body.String(), "3")
 	}
 
-	// Verify cache was set
 	val, err := rdb.Get(context.Background(), "visits_count").Result()
 	if err != nil {
 		t.Errorf("Cache not set: %v", err)
