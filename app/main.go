@@ -112,7 +112,10 @@ func handleVisits(w http.ResponseWriter, r *http.Request) {
 	rdb.Set(ctx, "visits_count", count, 0)
 
 	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprint(w, count)
+	_, err = fmt.Fprint(w, count)
+	if err != nil {
+		return
+	}
 }
 
 func getClientIP(r *http.Request) string {
