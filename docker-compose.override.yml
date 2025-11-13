@@ -1,0 +1,14 @@
+services:
+  app:
+    environment:
+      - DEBUG=true
+    labels:
+      - "test.environment=true"
+
+  db:
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    command: ["postgres", "-c", "log_statement=all"]
+
+  redis:
+    command: ["redis-server", "--appendonly", "yes"]
