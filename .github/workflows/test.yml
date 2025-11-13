@@ -10,11 +10,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:16-alpine
         env:
-          POSTGRES_USER: mct
-          POSTGRES_PASSWORD: mctapppass
-          POSTGRES_DB: mct
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: app
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -42,6 +42,11 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client redis-tools
+
       - name: Download dependencies
         working-directory: ./app
         run: go mod download
@@ -57,11 +62,11 @@ jobs:
 
       - name: Run database initialization
         env:
-          DB_USER: mct
-          DB_PASSWORD: mctapppass
+          DB_USER: user
+          DB_PASSWORD: password
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: mct
+          DB_NAME: app
         run: |
           bash init/init-db.sh
           if [ $? -eq 0 ]; then
@@ -73,7 +78,7 @@ jobs:
 
       - name: Verify database tables
         env:
-          PGPASSWORD: mctapppass
+          PGPASSWORD: password
         run: |
           psql -h localhost -U mct -d mct -c "\dt" || exit 1
           echo "Database tables verified"
@@ -81,16 +86,16 @@ jobs:
       - name: Check Redis connectivity
         run: |
           redis-cli -h localhost ping || exit 1
-          echo "✓ Redis is running"
+          echo "Redis is running"
 
       - name: Run tests with coverage
         working-directory: ./app
         env:
-          DB_USER: mct
-          DB_PASSWORD: mctapppass
+          DB_USER: user
+          DB_PASSWORD: password
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: mct
+          DB_NAME: app
           REDIS_ADDR: localhost:6379
           ENV: prod
         run: |
@@ -103,6 +108,9 @@ jobs:
           fi
           echo "Coverage $coverage% meets requirement (≥60%)"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: Build Docker images
         run: |
           docker build -t devops-app:test ./app
@@ -110,22 +118,22 @@ jobs:
 
       - name: Test Docker Compose - Prod
         run: |
-          docker-compose -f compose.yaml up -d
+          docker compose -f compose.yaml up -d
           sleep 15
-          docker-compose -f compose.yaml ps
-          curl -f http://localhost:8080/ping || exit 1
-          curl -f http://localhost:8080/health || exit 1
-          docker-compose -f compose.yaml down -v
+          docker compose -f compose.yaml ps
+          curl -f http://localhost:5000/ping || exit 1
+          curl -f http://localhost:5000/health || exit 1
+          docker compose -f compose.yaml down -v
 
       - name: Test Docker Compose - Dev
         run: |
-          docker-compose -f compose.yaml -f compose.dev.yaml up -d
+          docker compose -f compose.yaml -f compose.dev.yaml up -d
           sleep 15
-          response=$(curl -s http://localhost:8080/visits)
+          response=$(curl -s http://localhost:5000/visits)
           if [ "$response" != "-1" ]; then
             echo "Dev mode should return -1, got $response"
-            docker-compose -f compose.yaml -f compose.dev.yaml down -v
+            docker compose -f compose.yaml -f compose.dev.yaml down -v
             exit 1
           fi
           echo "Dev mode working correctly"
-          docker-compose -f compose.yaml -f compose.dev.yaml down -v
+          docker compose -f compose.yaml -f compose.dev.yaml down -v
