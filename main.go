@@ -66,6 +66,10 @@ func main() {
 
 	router := gin.Default()
 
+	router.GET("/", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
 	router.GET("/ping", func(c *gin.Context) {
 		ip := c.ClientIP()
 
