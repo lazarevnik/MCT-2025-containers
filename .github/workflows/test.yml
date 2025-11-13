@@ -15,30 +15,42 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Wait for DB initialization
+        run: |
+          timeout=60
+          while ! docker-compose logs init-db | grep -q "Database initialized successfully"; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "DB initialization failed"
+              docker-compose logs init-db
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "DB initialized successfully"
+
+      - name: Check Redis health
+        run: |
+          docker-compose exec -T redis redis-cli ping | grep -q "PONG"
+          echo "Redis is healthy"
+
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
+              docker-compose logs web
               exit 1
             fi
-            sleep 1
+            sleep 2
           done
+          echo "Web service is ready!"
 
-      - name: Test web response
+      - name: Run tests
         run: |
-          response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
-            exit 1
-          fi
-          echo "Web test passed!"
-
-      - name: Test PostgreSQL connection
-        run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker-compose exec -T web python -m pytest test_app.py -v --cov=mini_app --cov-report=term-missing --cov-fail-under=60
 
       - name: Show logs on failure
         if: failure()
