@@ -37,6 +37,10 @@ def get_db_connection():
 def get_redis_connection():
     return redis.Redis(**REDIS_CONFIG)
 
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
 @app.get("/ping", response_class=PlainTextResponse)
 def ping(request: Request):
     client_ip = request.client.host
