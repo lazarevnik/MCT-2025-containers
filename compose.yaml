@@ -1,6 +1,6 @@
 services:
   web:
-    build: .
+    build: web/
     ports:
       - "5000:5000"
     depends_on:
@@ -16,7 +16,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - type: bind
-        source: ./pg_hba.conf
+        source: db/pg_hba.conf
         target: /var/lib/postgresql/data/pg_hba.conf
     expose:
       - 5432
@@ -39,7 +39,7 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - type: bind
-        source: ./initdb.sh
+        source: dbinit/initdb.sh
         target: /initdb.sh
         read_only: true
     command: /bin/ash /initdb.sh
