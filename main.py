@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from fastapi.responses import PlainTextResponse
 import os
 import time
 
@@ -27,7 +28,7 @@ def get_db_connection():
 async def root():
     return {"message": "Welcome to the web server with PostgreSQL"}
 
-@app.get("/ping")
+@app.get("/ping", response_class=PlainTextResponse)
 async def ping(request: Request):
     client_ip = request.client.host
     user_agent = request.headers.get("user-agent", "")
