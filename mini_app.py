@@ -6,6 +6,8 @@ import time
 import redis
 import json
 
+APP_MODE = os.getenv('APP_MODE', 'prod')
+
 app = Flask(__name__)
 
 DB_CONFIG = {
