@@ -13,11 +13,36 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Start services
-        run: docker compose up -d
+        run: docker compose up -d --build
+        
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          timeout=60
+          while ! docker compose exec -T db pg_isready -U app_user -d app_db; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "PostgreSQL service failed to start"
+              docker compose logs db
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL is ready"
+
+      - name: Check database initialization
+        run: |
+          # Проверяем, что таблица visits была создана
+          table_exists=$(docker compose exec -T db psql -U app_user -d app_db -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'visits');" | tr -d '[:space:]')
+          if [ "$table_exists" != "t" ]; then
+            echo "ERROR: Database table 'visits' was not created"
+            docker compose logs db
+            exit 1
+          fi
+          echo "Database table 'visits' exists"
 
       - name: Wait for web to be ready
         run: |
-          timeout=60
+          timeout=120
           while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
@@ -31,7 +56,7 @@ jobs:
         run: |
           response=$(curl -s http://localhost:5000/ping)
           if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
+            echo "Expected "pong", got: $response"
             exit 1
           fi
           echo "Web test passed!"
