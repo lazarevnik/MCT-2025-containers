@@ -22,6 +22,10 @@ def get_db_conn():
         port = DB_PORT
     )
 
+@app.get("/")
+async def hello_world():
+    return "Hello, user!"
+
 @app.get("/ping")
 async def ping_pong(request: Request):
     global visits_count
