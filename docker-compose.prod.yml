@@ -1,0 +1,81 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: visits_postgres_prod
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: app
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db_init:
+    build:
+      context: .
+      dockerfile: Dockerfile.init
+    container_name: visits_db_init_prod
+    environment:
+      DB_HOST: db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: app
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: "no"
+
+  redis:
+    image: redis:7-alpine
+    container_name: visits_redis_prod
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: visits_app_prod
+    ports:
+      - "5000:5000"
+    environment:
+      SERVER_PORT: "5000"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: app
+      DB_SSLMODE: disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ""
+      DEV_MODE: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+      db_init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:
+
