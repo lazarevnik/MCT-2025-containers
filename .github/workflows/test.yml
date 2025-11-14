@@ -12,20 +12,54 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Run tests with coverage
+        run: |
+          go test -v -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out
+          
+      - name: Check coverage threshold
+        run: |
+          coverage=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "Total coverage: $coverage%"
+          threshold=60
+          if (( $(echo "$coverage < $threshold" | bc -l) )); then
+            echo "Coverage $coverage% is below threshold $threshold%"
+            exit 1
+          fi
+          echo "Coverage check passed!"
+
       - name: Start services
         run: docker compose up -d
+
+      - name: Check DB initialization completed
+        run: |
+          if docker compose ps -a db_init | grep -q "Exited (0)"; then
+            echo "DB initialization completed successfully"
+          else
+            echo "DB initialization failed"
+            docker compose logs db_init
+            exit 1
+          fi
 
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
+              docker compose ps
+              docker compose logs app
               exit 1
             fi
             sleep 1
           done
+          echo "Web service is ready!"
 
       - name: Test web response
         run: |
@@ -40,6 +74,80 @@ jobs:
         run: |
           docker compose exec -T db pg_isready -U user -d app
 
+      - name: Test Redis connection
+        run: |
+          docker compose exec -T redis redis-cli ping
+
+      - name: Stop production services
+        run: docker compose down
+
+      - name: Test Dev Environment
+        run: |
+          echo "Testing DEV environment..."
+          docker compose -f docker-compose.dev.yml up -d
+          
+      - name: Wait for dev app to be ready
+        run: |
+          timeout=30
+          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Dev app failed to start"
+              docker compose -f docker-compose.dev.yml ps
+              docker compose -f docker-compose.dev.yml logs app
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "Dev app is ready!"
+          
+      - name: Test dev mode returns -1
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != "-1" ]]; then
+            echo "Expected '-1' in dev mode, got: $response"
+            exit 1
+          fi
+          echo "Dev mode test passed!"
+
+      - name: Stop dev services
+        run: docker compose -f docker-compose.dev.yml down
+
+      - name: Test Prod Environment
+        run: |
+          echo "Testing PROD environment..."
+          docker compose -f docker-compose.prod.yml up -d
+          
+      - name: Wait for prod app to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Prod app failed to start"
+              docker compose -f docker-compose.prod.yml ps
+              docker compose -f docker-compose.prod.yml logs app
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "Prod app is ready!"
+          
+      - name: Test prod mode
+        run: |
+          # Test ping
+          curl -s http://localhost:5000/ping
+          # Test visits returns number
+          response=$(curl -s http://localhost:5000/visits)
+          if ! [[ "$response" =~ ^[0-9]+$ ]]; then
+            echo "Expected a number in prod mode, got: $response"
+            exit 1
+          fi
+          echo "Prod mode test passed!"
+
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: |
+          docker compose logs || true
+          docker compose -f docker-compose.dev.yml logs || true
+          docker compose -f docker-compose.prod.yml logs || true
