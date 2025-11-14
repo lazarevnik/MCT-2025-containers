@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +26,7 @@ async def get_db() -> AsyncSession:
         yield session
 
 
-@app.get("/ping")
+@app.get("/ping", response_class=PlainTextResponse)
 async def ping(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
