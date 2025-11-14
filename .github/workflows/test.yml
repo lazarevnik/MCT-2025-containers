@@ -3,6 +3,26 @@ name: Docker Compose Test
 on:
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run tests against'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - basic
+        - cache
+        - db-init
+      verbose:
+        description: 'Enable verbose logging'
+        required: false
+        type: boolean
+      skip-cleanup:
+        description: 'Skip cleanup after tests'
+        required: false
+        type: boolean
 
 jobs:
   test-compose:
