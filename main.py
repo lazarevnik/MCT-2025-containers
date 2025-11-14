@@ -6,9 +6,9 @@ app = Flask(__name__)
 time.sleep(15)
 def dataBase():
     conn = psycopg2.connect(
-        host='db'
-        database='postgres'
-        user='user'
+        host='db',
+        database='postgres',
+        user='user',
         password='<123>'
     )
     return conn
