@@ -40,6 +40,15 @@ jobs:
         run: |
           docker compose exec -T db pg_isready -U user -d app
 
+      - name: Test Initialization script
+        run: |
+          exit_code=$(docker inspect my_container --format='{{.State.ExitCode}}')
+          if [ "$exit_code" != "0" ]; then
+            echo "Container exited with code $exit_code"
+            exit 1
+          fi  
+            
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs

@@ -7,8 +7,8 @@ services:
     depends_on:
       - init_app  
     environment:
-      - DB_NAME=request_db
-      - DB_USER=user_db
+      - DB_NAME=app
+      - DB_USER=user
       - DB_PASWD=passwd
       - DB_PORT=5432
     command: uvicorn main:app --host 0.0.0.0 --port 5000 --reload
@@ -20,8 +20,8 @@ services:
       db:
         condition: service_healthy 
     environment:
-      - DB_NAME=request_db
-      - DB_USER=user_db
+      - DB_NAME=app
+      - DB_USER=user
       - DB_PASWD=passwd
       - DB_PORT=5432
     command: python3 init_db.py
@@ -30,11 +30,11 @@ services:
     image: postgres:15
     container_name: db_app
     environment:
-      - POSTGRES_DB=request_db
-      - POSTGRES_USER=user_db
+      - POSTGRES_DB=app
+      - POSTGRES_USER=user
       - POSTGRES_PASSWORD=passwd
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user_db -d request_db"]
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
       interval: 5s
       timeout: 3s
       retries: 5
