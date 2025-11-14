@@ -15,3 +15,7 @@ async def visits():
     conn = await get_db()
     row = await conn.fetchrow("SELECT COUNT(*) AS c FROM visits")
     return row["c"]
+
+@app.get("/")
+async def root():
+    return {"status" : "ok"}
