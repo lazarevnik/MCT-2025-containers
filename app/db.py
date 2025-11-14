@@ -12,4 +12,11 @@ async def get_db():
             database=os.getenv("POSTGRES_DB"),
             host="db"
         )
+        await DB_CONN.execute("""
+            CREATE TABLE IF NOT EXISTS visits (
+                id SERIAL PRIMARY KEY,
+                ip TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
     return DB_CONN
