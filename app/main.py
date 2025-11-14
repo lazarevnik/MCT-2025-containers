@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 import psycopg2
 
 app = FastAPI()
@@ -20,7 +21,7 @@ def get_conn():
     )
 
 
-@app.get("/ping")
+@app.get("/ping", response_class=PlainTextResponse)
 def ping(request: Request):
     if APP_ENV == "prod":
         conn = get_conn()
@@ -29,7 +30,7 @@ def ping(request: Request):
         conn.commit()
         cur.close()
         conn.close()
-    return 'pong'
+    return "pong"
 
 
 @app.get("/visits")
