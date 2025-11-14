@@ -188,3 +188,62 @@ class TestVisitsEndpoint:
 
         count = await visits(request, db_session)
         assert count == 0
+
+
+class TestSillyVisitsEndpoint:
+    """Tests for the /silly-visits endpoint."""
+
+    async def test_silly_visits_no_history(self, client: AsyncClient, monkeypatch):
+        """Test silly-visits endpoint returns 0 count with rhymes."""
+
+        # Mock the LLM call
+        async def mock_get_rhyming_words(number: int) -> list[str]:
+            return ["fun", "run", "sun"]
+
+        monkeypatch.setattr("pingpong.app.get_rhyming_words", mock_get_rhyming_words)
+
+        response = await client.get("/silly-visits")
+
+        assert response.status_code == 200
+        assert "0" in response.text
+        assert "fun" in response.text or "run" in response.text
+        assert response.headers["content-type"] == "text/plain; charset=utf-8"
+
+    async def test_silly_visits_with_history(self, client: AsyncClient, monkeypatch):
+        """Test silly-visits endpoint returns correct count with rhymes."""
+
+        # Mock the LLM call
+        async def mock_get_rhyming_words(number: int) -> list[str]:
+            return ["free", "tree", "sea"]
+
+        monkeypatch.setattr("pingpong.app.get_rhyming_words", mock_get_rhyming_words)
+
+        # Make some ping requests first
+        await client.get("/ping")
+        await client.get("/ping")
+        await client.get("/ping")
+
+        response = await client.get("/silly-visits")
+
+        assert response.status_code == 200
+        assert "3" in response.text
+        # Check for at least one of the rhyming words
+        assert (
+            "free" in response.text or "tree" in response.text or "sea" in response.text
+        )
+
+    async def test_get_rhyming_words_fallback(self, monkeypatch):
+        """Test that get_rhyming_words has proper fallback on error."""
+        # Mock vllm_client to raise an exception
+        from unittest.mock import AsyncMock
+
+        from pingpong.app import get_rhyming_words
+
+        mock_client = AsyncMock()
+        mock_client.chat.completions.create.side_effect = Exception("API Error")
+
+        monkeypatch.setattr("pingpong.app.vllm_client", mock_client)
+
+        # Should return fallback rhymes
+        rhymes = await get_rhyming_words(5)
+        assert rhymes == ["fun", "run", "sun"]

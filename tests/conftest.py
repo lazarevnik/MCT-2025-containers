@@ -33,7 +33,7 @@ async def init_engine() -> AsyncGenerator[None, None]:
     from pingpong.db import Base
 
     # engine is a singleton in our app
-    engine = get_settings().engine
+    engine = get_settings().db.engine
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -52,7 +52,7 @@ async def db_session(init_engine: None):
     # Ensure clean state before each test
     await _clean_tables()
 
-    async with get_settings().async_session_maker() as s:
+    async with get_settings().db.async_session_maker() as s:
         yield s
 
     # Cleanup after each test
@@ -65,7 +65,7 @@ async def _clean_tables() -> None:
     tables = Base.metadata.tables.values()
 
     # Delete all rows from all tables
-    async with get_settings().async_session_maker() as test_session:
+    async with get_settings().db.async_session_maker() as test_session:
         for table in reversed(list(tables)):
             await test_session.execute(table.delete())
         await test_session.commit()

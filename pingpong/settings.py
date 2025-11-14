@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
-from pydantic import Field, SecretStr
+from openai import AsyncClient
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -60,11 +61,32 @@ class DatabaseSettings(BaseSettings):
         )
 
 
-_settings: DatabaseSettings | None = None
+class LLMSettings(BaseSettings):
+    """Settings for LLM service connection."""
+
+    model_config = SettingsConfigDict(case_sensitive=False, env_prefix="LLM_")
+
+    base_url: str = Field("http://vllm:8000/v1", description="LLM API base URL")
+    api_key: str = Field("EMPTY", description="LLM API key (not required for local)")
+    model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
+
+    def get_client(self) -> AsyncClient:
+        return AsyncClient(
+            base_url=self.base_url,
+            api_key=self.api_key,
+        )
 
 
-def get_settings() -> DatabaseSettings:
+class Settings(BaseModel):
+    db: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    llm: LLMSettings = Field(default_factory=LLMSettings)
+
+
+_settings: Settings | None = None
+
+
+def get_settings() -> Settings:
     global _settings
     if not _settings:
-        _settings = DatabaseSettings()
+        _settings = Settings()
     return _settings
