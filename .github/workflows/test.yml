@@ -12,6 +12,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Build images
+        run: docker compose build
+
+      - name: Run database initialization script
+        run: |
+          set -e
+          docker compose up db-init --abort-on-container-exit --exit-code-from db-init
+          echo "Database initialization completed successfully."
+          docker compose rm -f db-init
+
+      - name: Start cache service
+        run: docker compose up -d cache
+
+      - name: Verify cache readiness
+        run: |
+          for attempt in {1..10}; do
+            if docker compose exec -T cache redis-cli ping | grep -q "PONG"; then
+              echo "Cache service is ready."
+              exit 0
+            fi
+            echo "Cache not ready yet, retrying..."
+            sleep 2
+          done
+          echo "Cache service failed to respond."
+          docker compose logs cache
+          exit 1
+
       - name: Start services
         run: docker compose up -d
 
