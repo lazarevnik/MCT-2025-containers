@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - APP_MODE=dev
+      - POSTGRES_DB=app
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REDIS_HOST=redis
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles: [dev]
+
+  web-prod:
+    build: .
+    environment:
+      - FLASK_ENV=production
+      - APP_MODE=prod
+      - POSTGRES_DB=app
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REDIS_HOST=redis
+    ports:
+      - "80:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
+    profiles: [prod]
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=app
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    profiles: [dev, prod]
+
+  init-db:
+    build: .
+    environment:
+      - POSTGRES_DB=app
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+    command: ["python", "init_db.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: [prod]
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    profiles: [dev, prod]
+
+volumes:
+  postgres_data:

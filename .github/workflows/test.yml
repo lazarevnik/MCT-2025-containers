@@ -5,41 +5,123 @@ on:
     branches: [ main ]
 
 jobs:
-  test-compose:
+  test-dev:
+    name: Test Dev Environment
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Start Dev Environment
+        run: |
+          docker-compose --profile dev up -d --build
+
+      - name: Wait for services
+        run: sleep 10
+
+      - name: Test Dev Mode
+        run: |
+          curl -f http://localhost:5000/health
+          
+          visits=$(curl -s http://localhost:5000/visits)
+          if [ "$visits" != "-1" ]; then
+            echo "Expected -1 in dev mode, got: $visits"
+            exit 1
+          fi
+          
+          ping=$(curl -s http://localhost:5000/ping)
+          if [ "$ping" != "pong" ]; then
+            echo "Expected pong, got: $ping"
+            exit 1
+          fi
+          
+          visits_after=$(curl -s http://localhost:5000/visits)
+          if [ "$visits_after" != "-1" ]; then
+            echo "Should still be -1 after ping in dev mode, got: $visits_after"
+            exit 1
+          fi
+          
+          echo "Dev environment tests passed"
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker-compose logs
+
+  test-prod:
+    name: Test Prod Environment  
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose up -d
+      - name: Setup Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
 
-      - name: Wait for web to be ready
+      - name: Start Prod Environment
+        run: |
+          docker-compose --profile prod up -d --build
+
+      - name: Wait for DB initialization
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! docker-compose logs init-db | grep -q "Database initialized successfully!"; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
+              echo "DB initialization failed"
+              docker-compose logs init-db
               exit 1
             fi
-            sleep 1
+            sleep 2
           done
+          echo "DB initialized"
 
-      - name: Test web response
+      - name: Check Redis health
         run: |
-          response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
+          docker-compose exec -T redis redis-cli ping | grep -q "PONG"
+          echo "Redis is healthy"
+
+      - name: Wait for Web
+        run: |
+          timeout=30
+          while ! curl -f http://localhost:80/health; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web not ready"
+              docker-compose logs web
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Web ready"
+
+      - name: Test Prod Mode
+        run: |
+          visits1=$(curl -s http://localhost:80/visits)
+          if [ "$visits1" = "-1" ]; then
+            echo "Should not return -1 in prod mode"
             exit 1
           fi
-          echo "Web test passed!"
-
-      - name: Test PostgreSQL connection
-        run: |
-          docker compose exec -T db pg_isready -U user -d app
+          
+          curl -s http://localhost:80/ping > /dev/null
+          sleep 2
+          visits2=$(curl -s http://localhost:80/visits)
+          
+          if [ "$visits2" -le "$visits1" ]; then
+            echo "Visit count should increase after ping (was: $visits1, now: $visits2)"
+            exit 1
+          fi
+          
+          echo "Prod environment tests passed"
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: docker-compose logs
