@@ -1,0 +1,45 @@
+services:
+  app:
+    build: ./app
+    container_name: main_app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - init_app  
+    environment:
+      - DB_NAME=app
+      - DB_USER=user
+      - DB_PASWD=passwd
+      - DB_PORT=5432
+    command: uvicorn main:app --host 0.0.0.0 --port 5000 --reload
+
+  init_app:
+    build: ./init_db
+    container_name: init_app
+    depends_on:
+      db:
+        condition: service_healthy 
+    environment:
+      - DB_NAME=app
+      - DB_USER=user
+      - DB_PASWD=passwd
+      - DB_PORT=5432
+    command: python3 init_db.py
+
+  db:
+    image: postgres:15
+    container_name: db_app
+    environment:
+      - POSTGRES_DB=app
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=passwd
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
