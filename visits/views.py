@@ -1,3 +1,4 @@
+import os
 from django.http import HttpResponse
 from .models import Visit
 
@@ -7,8 +8,9 @@ def ping(request):
     return HttpResponse("pong")
 
 def visits(request):
-    count = Visit.objects.count()
-    return HttpResponse(str(count))
+    if os.getenv('DEV_MODE') == '1':
+        return HttpResponse("-1")
+    return HttpResponse(str(Visit.objects.count()))
 
 def health(request):
     return HttpResponse("OK")
