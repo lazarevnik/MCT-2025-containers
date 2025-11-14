@@ -1,45 +1,97 @@
-name: Docker Compose Test
+name: Docker Compose Integration Test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  test-compose:
+  integration-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose up -d
-
-      - name: Wait for web to be ready
+      - name: Test DEV mode
         run: |
-          timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
-            ((timeout--))
-            if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
-              exit 1
+          docker compose -f compose.dev.yml up -d --build
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:5000/ping >/dev/null 2>&1; then
+              break
             fi
-            sleep 1
+            echo "waiting for dev app..."
+            sleep 2
           done
-
-      - name: Test web response
-        run: |
-          response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
+          val=$(curl -s http://localhost:5000/visits | jq -r .visits)
+          echo "DEV /visits -> $val"
+          if [[ "$val" != "-1" ]]; then
+            echo "expected -1 in DEV mode, got $val"
+            docker compose -f compose.dev.yml logs app
             exit 1
           fi
-          echo "Web test passed!"
+          docker compose -f compose.dev.yml down -v
 
-      - name: Test PostgreSQL connection
+      - name: Build and start all containers
+        run: docker compose up -d --build
+
+      - name: Wait for init_db to complete successfully
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          echo "Waiting for init_db..."
+          timeout=90
+          while [ "$(docker inspect -f '{{.State.Status}}' init_db 2>/dev/null)" != "exited" ]; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "init_db did not complete in time"
+              docker compose logs init_db
+              exit 1
+            fi
+            sleep 2
+          done
 
-      - name: Show logs on failure
-        if: failure()
-        run: docker compose logs
+          code=$(docker inspect -f '{{.State.ExitCode}}' init_db)
+          if [ "$code" != "0" ]; then
+            echo "init_db failed with code $code"
+            docker compose logs init_db
+            exit 1
+          fi
+          echo "init_db completed successfully."
+
+      - name: Wait for application to become ready
+        run: |
+          timeout=5
+          while ! curl -fs http://localhost:5000/ping >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "App did not start correctly"
+              docker compose logs app
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "App is responding."
+
+      - name: Validate API responses
+        run: |
+          pong=$(curl -s http://localhost:5000/ping | jq -r .response)
+          if [[ "$pong" != "pong" ]]; then
+            echo "Expected pong, got: $pong"
+            exit 1
+          fi
+          echo "/ping returned pong."
+
+          visits=$(curl -s http://localhost:5000/visits | jq -r .visits)
+          echo "Visits count: $visits"
+          if [[ "$visits" -lt 1 ]]; then
+            echo "Expected visits >= 1, got $visits"
+            exit 1
+          fi
+          echo "/visits returned expected count."
+
+      - name: Test PostgreSQL connectivity
+        run: |
+          docker compose exec -T db pg_isready -U postgres
+
+      - name: Test Redis connectivity
+        run: |
+          docker compose exec -T redis redis-cli ping | grep PONG
+          echo "Redis ping OK."
