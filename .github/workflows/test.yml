@@ -20,7 +20,7 @@ jobs:
 
       - name: Start Dev Environment
         run: |
-          docker-compose --profile dev up -d --build
+          docker compose --profile dev up -d --build
 
       - name: Wait for services
         run: sleep 10
@@ -59,10 +59,6 @@ jobs:
         if: failure()
         run: docker-compose logs
 
-      - name: Cleanup
-        if: always()
-        run: docker-compose down
-
   test-prod:
     name: Test Prod Environment  
     runs-on: ubuntu-latest
@@ -78,12 +74,12 @@ jobs:
 
       - name: Start Prod Environment
         run: |
-          docker-compose --profile prod up -d --build
+          docker compose --profile prod up -d --build
 
       - name: Wait for DB initialization
         run: |
           timeout=60
-          while ! docker-compose logs init-db 2>/dev/null | grep -q "Database initialization successfully"; do
+          while ! docker-compose logs init-db | grep -q "Database initialization successfully"; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "DB initialization failed"
@@ -94,19 +90,10 @@ jobs:
           done
           echo "DB initialized"
 
-      - name: Wait for Redis
+      - name: Check Redis health
         run: |
-          timeout=30
-          while ! docker-compose ps redis 2>/dev/null | grep -q "healthy"; do
-            ((timeout--))
-            if [ $timeout -eq 0 ]; then
-              echo "Redis not healthy"
-              docker-compose logs redis
-              exit 1
-            fi
-            sleep 2
-          done
-          echo "Redis ready"
+          docker-compose exec -T redis redis-cli ping | grep -q "PONG"
+          echo "Redis is healthy"
 
       - name: Wait for Web
         run: |
