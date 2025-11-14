@@ -1,15 +1,13 @@
 services:
-  webserver:
-    build: ./webserver
-    container_name: webserver
-    ports:
-      - "5000:8000"
+  initdb:
+    build: ./webserver/initdb
+    container_name: initdb
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: pass
     depends_on:
-      - db
-
+      db:
+        condition: service_healthy
   db:
     image: postgres:18
     container_name: postgres
@@ -19,3 +17,25 @@ services:
       POSTGRES_PASSWORD: pass
     volumes:
       - ./db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+  webserver:
+    build: ./webserver
+    container_name: webserver
+    ports:
+      - "5000:8000"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    depends_on:
+      initdb:
+        condition: service_completed_successfully
+
+
+
+

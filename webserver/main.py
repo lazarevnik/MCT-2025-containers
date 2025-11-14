@@ -3,11 +3,10 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from datetime import datetime
-from db import RequestDb, Base
+from initdb.db import RequestDb, Base
 
 app = FastAPI()
 engine = create_engine("postgresql+psycopg://user:pass@db:5432/posdb", echo=True)
-Base.metadata.create_all(engine)
 
 @app.get("/")
 def main():
