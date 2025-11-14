@@ -7,9 +7,12 @@ services:
       - "5000:8000"
     environment:
       - DATABASE_URL=postgresql://user:password@db/app
+      - REDIS_HOST=cache
     depends_on:
       db-init:
         condition: service_completed_successfully
+      cache:
+        condition: service_started
 
   db-init:
     image: postgres:15-alpine
@@ -40,6 +43,14 @@ services:
       - POSTGRES_PASSWORD=password
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  cache:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

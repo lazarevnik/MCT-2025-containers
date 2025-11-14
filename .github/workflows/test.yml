@@ -38,6 +38,27 @@ jobs:
           fi
           echo "DB init service completed successfully!"
 
+      # Task 2 modification
+      - name: Test Redis connection
+        run: |
+          timeout=30
+          while ! docker compose exec -T cache redis-cli ping >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Redis service failed to start"
+              docker compose logs cache
+              exit 1
+            fi
+            sleep 1
+          done
+          
+          response=$(docker compose exec -T cache redis-cli ping)
+          if [[ "$response" != "PONG" ]]; then
+            echo "Expected 'PONG' from Redis, got: $response"
+            exit 1
+          fi
+          echo "Redis connection test passed!"
+
       - name: Wait for web to be ready
         run: |
           timeout=60

@@ -4,11 +4,20 @@ from contextlib import contextmanager
 
 import psycopg2
 from fastapi import FastAPI, Request, Response
-from psycopg2.extras import RealDictCursor
+
+import redis
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@db/app")
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 
 app = FastAPI()
+
+try:
+    redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
+    redis_client.ping()
+except redis.exceptions.ConnectionError as e:
+    print(f"Не удалось подключиться к Redis: {e}")
+    redis_client = None
 
 def get_db_connection():
     """Функция для установки соединения с БД с попытками переподключения."""
@@ -53,15 +62,39 @@ def ping(request: Request):
     client_ip = request.client.host
     with db_cursor() as cur:
         cur.execute("INSERT INTO visits (ip_address) VALUES (%s)", (client_ip,))
+    
+    if redis_client:
+        try:
+            redis_client.incr("visits_count")
+        except redis.exceptions.ConnectionError as e:
+            print(f"Ошибка Redis при инкременте счетчика: {e}")
+
     return Response(content="pong", media_type="text/plain")
 
 
 @app.get("/visits", response_class=Response)
 def get_visits():
+    count = 0
+
+    if redis_client:
+        try:
+            cached_count = redis_client.get("visits_count")
+            if cached_count is not None:
+                return Response(content=str(cached_count), media_type="text/plain")
+        except redis.exceptions.ConnectionError as e:
+            print(f"Ошибка Redis при получении счетчика: {e}")
+
     with db_cursor() as cur:
         cur.execute("SELECT COUNT(*) AS total_visits FROM visits;")
         result = cur.fetchone()
         count = result[0] if result else 0
+
+    if redis_client:
+        try:
+            redis_client.set("visits_count", count)
+        except redis.exceptions.ConnectionError as e:
+            print(f"Ошибка Redis при установке счетчика: {e}")
+            
     return Response(content=str(count), media_type="text/plain")
 
 
