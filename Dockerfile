@@ -10,6 +10,7 @@ RUN uv sync
 
 COPY init_db.py ./
 COPY pingpong/ ./pingpong/
+COPY .env ./
 
 EXPOSE 5000
 
