@@ -1,9 +1,7 @@
 from flask import Flask, request
 import psycopg2
-import time
 
 app = Flask(__name__)
-time.sleep(15)
 def dataBase():
     conn = psycopg2.connect(
         host='db',
@@ -15,7 +13,7 @@ def dataBase():
     
 @app.before_first_request
 def create_table():
-    conn = get_db_connection()
+    conn = dataBase()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS visits (
