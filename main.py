@@ -1,14 +1,13 @@
 from flask import Flask, request
-import pcycopg2
+import psycopg2
 
 app = Flask(__name__)
 
-@app.route('/')
 def dataBase():
     conn = psycopg2.connect(
-        host='<host>'
-        database='<db>'
-        user='<user>'
+        host='db'
+        database='postgres'
+        user='user'
         password='<123>'
     )
     return conn
@@ -24,7 +23,8 @@ def ping():
     cursor.close()
     conn.close()
     return "pong\n"
-    
+
+@app.route('/visits')
 def visits():
     conn = dataBase()
     cursor = conn.cursor()
