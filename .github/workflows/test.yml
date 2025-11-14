@@ -2,7 +2,7 @@ name: Docker Compose Test
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test-compose:
@@ -12,33 +12,109 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          DB_HOST=db
+          DB_PORT=5432
+          DB_USER=user
+          DB_PASSWORD=password
+          DB_NAME=pingdb
+          DB_SSLMODE=disable
+          REDIS_HOST=cache
+          REDIS_PORT=6379
+          REDIS_PASSWORD=
+          REDIS_DB=0
+          SERVER_HOST=0.0.0.0
+          SERVER_PORT=5000
+          EOF
+
       - name: Start services
-        run: docker compose up -d
-
-      - name: Wait for web to be ready
         run: |
-          timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
-            ((timeout--))
-            if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
-              exit 1
-            fi
-            sleep 1
-          done
-
-      - name: Test web response
-        run: |
-          response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
-            exit 1
-          fi
-          echo "Web test passed!"
+          cd deployments
+          docker compose up -d --build
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose -f deployments/docker-compose.yaml exec -T db pg_isready -U user -d pingdb
+
+      - name: Check Redis health
+        run: |
+          docker compose -f deployments/docker-compose.yaml exec -T cache redis-cli ping | grep PONG
+
+      - name: Check Flyway migration logs
+        run: |
+          docker compose -f deployments/docker-compose.yaml logs flyway | grep -E "Successfully applied|Successfully validated|Schema|Migrating|baseline"
+
+      - name: Test visit counter
+        run: |
+          # Так как при проверке тела запроса мы уже сделали один запрос к /visits,
+          # то лучше перезапустить контейнер с чистой бд
+          cd deployments
+          docker compose down -v
+          docker compose up -d
+
+          timeout=60
+          while ! curl -sf http://localhost:5000/health >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start after restart"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # Случайное число запросов от 5 до 100
+          random_count=$((RANDOM % 96 + 5))
+          echo "Making $random_count requests to /ping endpoint..."
+
+          for i in $(seq 1 $random_count); do
+            response=$(curl -s http://localhost:5000/ping)
+            if [[ "$response" != "pong" ]]; then
+              echo "Request $i failed: expected 'pong', got: $response"
+              exit 1
+            fi
+          done
+
+          visits=$(curl -s http://localhost:5000/visits)
+          if [[ "$visits" != "$random_count" ]]; then
+            echo "Visit count mismatch: expected: $random_count, got: $visits"
+            exit 1
+          fi
+
+          # Сохроняем значени, чтобы потом можно было проверить, что
+          # вольюмы действительно сохраняют данные от запуска к запуску
+          echo "PING_COUNT=$random_count" >> $GITHUB_ENV
+          echo "Visit counter test passed!"
+
+      - name: Test volume persistence
+        run: |
+          cd deployments
+          echo "Stopping containers..."
+          docker compose stop api cache
+          docker compose ps
+
+          echo "Restarting containers..."
+          docker compose start cache api
+
+          timeout=60
+          while ! curl -sf http://localhost:5000/health >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to restart"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # Проверяем, что предыдущий счетчик остался на месте
+          visits=$(curl -s http://localhost:5000/visits)
+          if [[ "$visits" != "$PING_COUNT" ]]; then
+            echo "Visits counter mismatch: expected: $PING_COUNT, got: $visits"
+            exit 1
+          fi
+
+          echo "Volume persistence test passed!"
 
       - name: Show logs on failure
         if: failure()

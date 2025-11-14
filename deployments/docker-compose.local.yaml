@@ -1,0 +1,68 @@
+# Development-only docker-compose for running dependencies
+services:
+  db:
+    image: postgres:14-alpine
+    container_name: local_postgres_db
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-pingdb}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - local_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  cache:
+    image: redis:7-alpine
+    container_name: local_redis_cache
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - local_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  flyway:
+    image: flyway/flyway:10
+    container_name: local_flyway_migration
+    env_file:
+      - ../.env
+    environment:
+      DB_USER: ${DB_USER:-user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+    command: >
+      -locations=filesystem:/flyway/migrations
+      -url=jdbc:postgresql://db:${DB_PORT:-5432}/${DB_NAME:-pingdb}
+      -user=${DB_USER:-user}
+      -password=${DB_PASSWORD:-password}
+      -connectRetries=60
+      migrate
+    volumes:
+      - ../scripts/migration:/flyway/migrations
+    networks:
+      - local_network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+networks:
+  local_network:
+    driver: bridge
+    name: local_ping_api_network
+
