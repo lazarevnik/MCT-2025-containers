@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    environment:
+      APP_ENV: prod
+      DB_HOST: db
+      DB_NAME: app
+      DB_USER: user
+      DB_PASSWORD: password
+    ports:
+      - "5000:5000"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  db-init:
+    build: .
+    working_dir: /app/init-db
+    command: ["python", "init-db.py"]
+    environment:
+      DB_HOST: db
+      DB_NAME: app
+      DB_USER: user
+      DB_PASSWORD: password
+    depends_on:
+      db:
+        condition: service_started
+
+volumes:
+  db_data:
