@@ -8,8 +8,8 @@ def dataBase():
     conn = psycopg2.connect(
         host='db',
         database='postgres',
-        user='user',
-        password='<123>'
+        user='postgres',
+        password='123'
     )
     return conn
     
@@ -17,21 +17,7 @@ def dataBase():
 def create_table():
     conn = get_db_connection()
     cursor = conn.cursor()
-    c@app.before_first_request
-def create_table():
-    conn = get_db_connection()
-    cursor = conn.cursor()
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS visits (
-            id SERIAL PRIMARY KEY,
-            ip VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    cursor.close()
-    conn.close()
-ursor.execute("""
         CREATE TABLE IF NOT EXISTS visits (
             id SERIAL PRIMARY KEY,
             ip VARCHAR(50),
