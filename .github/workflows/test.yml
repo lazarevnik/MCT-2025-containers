@@ -1,6 +1,8 @@
 name: Docker Compose Test
 
 on:
+  push:
+    branches: [ my_branch ]
   pull_request:
     branches: [ main ]
 
@@ -12,10 +14,53 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose up -d
+      # Production mode testing
+      - name: Start services using production config
+        run: docker compose -f docker-compose.yaml up -d
 
-      - name: Wait for web to be ready
+      # Task 1 modification
+      - name: Verify DB initialization script completed successfully
+        run: |
+          timeout=60
+          while [ "$(docker compose -f docker-compose.yaml ps -q db-init | wc -l)" -gt 0 ]; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "DB init service did not exit in time"
+              exit 1
+            fi
+            sleep 1
+          done
+          
+          exit_code=$(docker inspect $(docker ps -a -q --filter "name=db-init") --format='{{.State.ExitCode}}')
+          if [[ "$exit_code" -ne 0 ]]; then
+            echo "DB init service failed with exit code: $exit_code"
+            docker compose -f docker-compose.yaml logs db-init
+            exit 1
+          fi
+          echo "DB init service completed successfully!"
+
+      # Task 2 modification
+      - name: Test Redis connection
+        run: |
+          timeout=30
+          while ! docker compose -f docker-compose.yaml exec -T cache redis-cli ping >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Redis service failed to start"
+              docker compose -f docker-compose.yaml logs cache
+              exit 1
+            fi
+            sleep 1
+          done
+          
+          response=$(docker compose -f docker-compose.yaml exec -T cache redis-cli ping)
+          if [[ "$response" != "PONG" ]]; then
+            echo "Expected 'PONG' from Redis, got: $response"
+            exit 1
+          fi
+          echo "Redis connection test passed!"
+
+      - name: Wait for web to be ready (Prod)
         run: |
           timeout=60
           while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
@@ -27,19 +72,57 @@ jobs:
             sleep 1
           done
 
-      - name: Test web response
+      - name: Test web response (Prod)
         run: |
           response=$(curl -s http://localhost:5000/ping)
           if [[ "$response" != "pong" ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
           fi
-          echo "Web test passed!"
+          
+          visits=$(curl -s http://localhost:5000/visits)
+          if ! [[ "$visits" =~ ^[0-9]+$ ]]; then
+            echo "Expected visits to be a number, but got: $visits"
+            exit 1
+          fi
+          echo "Prod web tests passed!"
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose -f docker-compose.yaml exec -T db pg_isready -U user -d app
+
+      - name: Shutdown production services
+        run: docker compose -f docker-compose.yaml down
+      
+      # Development mode testing
+      - name: Start services using development config
+        run: docker compose -f docker-compose.dev.yaml up -d
+      
+      - name: Wait for web to be ready (Dev)
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service in dev mode failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test web response (Dev)
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != "-1" ]]; then
+            echo "In Dev mode, expected '/visits' to return '-1', but got: $response"
+            exit 1
+          fi
+          echo "Dev mode test passed!"
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: |
+          echo "--- Prod services logs ---"
+          docker compose -f docker-compose.yaml logs
+          echo "--- Dev services logs ---"
+          docker compose -f docker-compose.dev.yaml logs

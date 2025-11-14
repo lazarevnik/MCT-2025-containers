@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  web:
+    build: ./app
+    ports:
+      - "5000:8000"
+    environment:
+      - APP_ENV=prod
+      - DATABASE_URL=postgresql://user:password@db/app
+      - REDIS_HOST=cache
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      cache:
+        condition: service_started
+
+  db-init:
+    image: postgres:15-alpine
+    environment:
+      - PGHOST=db
+      - PGDATABASE=app
+      - PGUSER=user
+      - PGPASSWORD=password
+    volumes:
+      - ./db/db_init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      sh -c "
+        echo 'Ожидание готовности базы данных...'
+        while ! pg_isready -q -h db -U user -d app; do
+          sleep 1;
+        done;
+        echo 'База данных готова. Выполнение скрипта...'
+        psql -f /docker-entrypoint-initdb.d/init.sql
+      "
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_DB=app
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  cache:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
