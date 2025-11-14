@@ -1,0 +1,36 @@
+services:
+  init-db:
+    build: .
+    command: sh -c "wait-for-it db:5432 --timeout=30 -- python manage.py migrate --noinput"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=pingdb
+      - DB_USER=user
+      - DB_PASSWORD=password
+    depends_on:
+      - db
+
+  app:
+    build: .
+    ports:
+      - "5000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=pingdb
+      - DB_USER=user
+      - DB_PASSWORD=password
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: pingdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pg:/var/lib/postgresql/data
+
+volumes:
+  pg: {}
