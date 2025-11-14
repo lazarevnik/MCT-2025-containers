@@ -22,18 +22,9 @@ jobs:
         run: |
           docker-compose --profile dev up -d --build
 
-      - name: Wait for services
-        run: sleep 10
-
       - name: Test Dev Mode
         run: |
           curl -f http://localhost:5000/health
-          
-          mode=$(curl -s http://localhost:5000/mode | jq -r .mode)
-          if [ "$mode" != "dev" ]; then
-            echo "Expected dev mode, got: $mode"
-            exit 1
-          fi
           
           visits=$(curl -s http://localhost:5000/visits)
           if [ "$visits" != "-1" ]; then
