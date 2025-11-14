@@ -49,6 +49,14 @@ jobs:
           fi
           echo "Db init test passed!"
 
+      - name: Test Redis
+        run: |
+          key=$(docker compose exec -T redis redis-cli KEYS '*' 2>/dev/null)
+          if [[ "$key" != "visits" ]]; then
+            echo "No key in redis or redis not working"
+            exit 1
+          fi
+          echo "Redis test passed!"
 
       - name: Show logs on failure
         if: failure()

@@ -24,6 +24,9 @@ services:
       start_period: 30s
       timeout: 10s
 
+  redis:
+    image: redis
+
   webserver:
     build: ./webserver
     container_name: webserver
@@ -35,3 +38,6 @@ services:
     depends_on:
       initdb:
         condition: service_completed_successfully
+      redis:
+        condition: service_started
+      
