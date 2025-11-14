@@ -1,0 +1,49 @@
+services:
+  app:
+    build: .
+    ports:
+      - "5000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/visits_db
+      - REDIS_URL=redis://cache:6379/0
+      - APP_ENV=prod
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      cache:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=visits_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+
+  db-init:
+    build: .
+    command: ["python", "scripts/init_db.py"]
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/visits_db
+    depends_on:
+      db:
+        condition: service_healthy
+
+  cache:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+

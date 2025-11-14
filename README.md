@@ -107,3 +107,22 @@
 ## Дедлайн
 В этот раз поверю в силу автоматизации и сделаю один дедлайн: последний push в PR должен быть сделан не позднее **17:02 14.11.2025**.
 Если вы ну очень уж хотели что-то доделать и запушили какие-то дополнения после дедлайна, сделайте это отдельным коммитом: тогда будут шансы, что будет засчитана хоть часть задания.
+
+---
+## Локальные окружения
+
+- **Prod**: полный стек (`app`, `db`, `db-init`, `cache`).
+  - Запуск: `docker compose -f docker-compose.prod.yml up -d --build`
+  - Остановка: `docker compose -f docker-compose.prod.yml down -v`
+- **Dev**: только приложение в выразительном режиме (`/visits` всегда возвращает `-1`).
+  - Запуск: `docker compose -f docker-compose.dev.yml up --build`
+  - Остановка: `docker compose -f docker-compose.dev.yml down`
+
+## Тесты и покрытие
+
+```bash
+python -m pip install -r requirements.txt
+pytest --maxfail=1 --disable-warnings --cov=app --cov-report=term --cov-report=xml --cov-fail-under=60
+```
+
+Порог покрытия установлен на 60%, результат проверяется локально и внутри GitHub Actions.

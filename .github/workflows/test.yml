@@ -12,13 +12,54 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest --maxfail=1 --disable-warnings --cov=app --cov-report=xml --cov-report=term --cov-fail-under=60
+
+      - name: Build images
+        run: docker compose -f docker-compose.prod.yml build
+
+      - name: Run database initialization script
+        run: |
+          set -e
+          docker compose -f docker-compose.prod.yml up db-init --abort-on-container-exit --exit-code-from db-init
+          echo "Database initialization completed successfully."
+          docker compose -f docker-compose.prod.yml rm -f db-init
+
+      - name: Start cache service
+        run: docker compose -f docker-compose.prod.yml up -d cache
+
+      - name: Verify cache readiness
+        run: |
+          for attempt in {1..10}; do
+            if docker compose -f docker-compose.prod.yml exec -T cache redis-cli ping | grep -q "PONG"; then
+              echo "Cache service is ready."
+              exit 0
+            fi
+            echo "Cache not ready yet, retrying..."
+            sleep 2
+          done
+          echo "Cache service failed to respond."
+          docker compose -f docker-compose.prod.yml logs cache
+          exit 1
+
       - name: Start services
-        run: docker compose up -d
+        run: docker compose -f docker-compose.prod.yml up -d
 
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
@@ -38,8 +79,12 @@ jobs:
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose -f docker-compose.prod.yml exec -T db pg_isready -U postgres -d visits_db
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: docker compose -f docker-compose.prod.yml logs
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v
