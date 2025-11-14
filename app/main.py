@@ -42,7 +42,12 @@ def ping(request: Request):
 
 @app.get("/visits")
 def get_visits():
-    db = SessionLocal()
-    count = db.query(Visit).count()
-    db.close()
-    return count
+    app_env = os.getenv("APP_ENV", "prod")
+
+    if app_env == "dev":
+        return -1 # в dev-режиме всегда возвращаем -1
+    else:
+        db = SessionLocal()
+        count = db.query(Visit).count()
+        db.close()
+        return count
