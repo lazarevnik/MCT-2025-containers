@@ -12,8 +12,8 @@ services:
       - DB_HOST=db
       - DB_NAME=mydb
     depends_on:
-      db:
-        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
 
   db:
     image: postgres:13
@@ -28,6 +28,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  db-init:
+    image: postgres:13
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./db_init/init.sql:/docker-entrypoint-initdb.d/init.sql # sql-скрипт
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mydb
+      - POSTGRES_HOST=db
+    command: >
+      bash -c "psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d $$POSTGRES_DB -f /docker-entrypoint-initdb.d/init.sql"
 
 volumes:
   postgres_data:

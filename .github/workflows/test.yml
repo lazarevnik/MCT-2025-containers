@@ -15,6 +15,18 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Check data base initialization script status
+        run: |
+          sleep 5 
+          exit_code=$(docker compose ps -a --format json | jq -r 'select(.Service=="db-init") | .ExitCode')
+
+          if [[ "$exit_code" != "0" ]]; then
+            echo "::error::DB initialization script failed with exit code $exit_code!"
+            docker compose logs db-init
+            exit 1
+          fi
+          echo "DB initialization script completed successfully."
+
       - name: Wait for web to be ready
         run: |
           timeout=60
@@ -38,7 +50,7 @@ jobs:
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T db pg_isready -U user -d mydb
 
       - name: Show logs on failure
         if: failure()

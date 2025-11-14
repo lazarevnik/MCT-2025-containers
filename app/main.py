@@ -24,9 +24,6 @@ class Visit(Base):
     id = Column(Integer, primary_key=True, index=True)
     ip_address = Column(String, index=True)
 
-# Создаем таблицу, если она не существует
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
 
 @app.get("/")
