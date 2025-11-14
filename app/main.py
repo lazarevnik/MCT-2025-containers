@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import asyncpg  # type: ignore[import]
 import redis.asyncio as redis  # type: ignore[import]
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import PlainTextResponse
 
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -53,7 +54,7 @@ async def ping():
 
     await app.state.redis.set(CACHE_KEY, str(count))
 
-    return 'pong'
+    return PlainTextResponse("pong")
 
 
 @app.get("/visits")
