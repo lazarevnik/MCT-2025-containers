@@ -38,7 +38,7 @@ jobs:
 
       - name: Check DB initialization completed
         run: |
-          if docker compose ps db_init | grep -q "Exited (0)"; then
+          if docker compose ps -a db_init | grep -q "Exited (0)"; then
             echo "DB initialization completed successfully"
           else
             echo "DB initialization failed"
