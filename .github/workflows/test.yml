@@ -12,34 +12,134 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Start services
-        run: docker compose up -d
+      - name: Build services
+        run: docker compose build
 
-      - name: Wait for web to be ready
+      - name: Start PostgreSQL and Redis
+        run: docker compose up -d db redis
+
+      - name: Verify Redis is ready
+        run: |
+          docker compose exec -T redis redis-cli PING | grep -q "PONG"
+
+      - name: Run DB initialization
+        run: docker compose run --rm init-db
+
+      - name: Start web app
+        run: docker compose up -d app
+
+      - name: Wait for app to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:8000/ping >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
+              echo "App failed to start"
               exit 1
             fi
             sleep 1
           done
 
-      - name: Test web response
+      - name: Test /ping and /visits with cache
         run: |
-          response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
-            echo "Expected 'pong', got: $response"
+          # First ping
+          curl -s http://localhost:8000/ping >/dev/null
+          visits1=$(curl -s http://localhost:8000/visits | jq -r '.visits')
+          if [[ "$visits1" != "2" ]]; then
+            echo "Expected 2 visit, got $visits1"
             exit 1
           fi
-          echo "Web test passed!"
 
-      - name: Test PostgreSQL connection
+          # Second ping
+          curl -s http://localhost:8000/ping >/dev/null
+          visits2=$(curl -s http://localhost:8000/visits | jq -r '.visits')
+          if [[ "$visits2" != "3" ]]; then
+            echo "Expected 3 visits, got $visits2"
+            exit 1
+          fi
+
+          echo "Cache and DB are consistent"
+
+      - name: Verify data in Redis
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          count=$(docker compose exec -T redis redis-cli GET total_visits)
+          if [[ "$count" != "3" ]]; then
+            echo "Expected total_visits=3 in Redis, got: $count"
+            exit 1
+          fi
+          echo "Redis cache verified"
+
+      - name: Verify data in PostgreSQL
+        run: |
+          count=$(docker compose exec -T db psql -U postgres -d visitsdb -tAc "SELECT COUNT(*) FROM visits;")
+          if [[ "$count" != "3" ]]; then
+            echo "Expected 3 rows in DB, got: $count"
+            exit 1
+          fi
+      - name: Run application tests with coverage
+        run: |
+          docker compose exec -T app pytest \
+            --cov=/app \
+            --cov-fail-under=60 \
+            --cov-report=term-missing \
+            -v
+
+      - name: Verify integration (optional double-check)
+        run: |
+          curl -s http://localhost:8000/ping >/dev/null
+          visits=$(curl -s http://localhost:8000/visits | jq -r '.visits')
+          if [[ "$visits" -lt 1 ]]; then
+            echo "Integration test failed"
+            exit 1
+          fi
+
 
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
+  test-dev:
+    name: Test Development Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker compose build
+
+      - name: Start app in dev mode
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+      - name: Wait for dev app to be ready
+        run: |
+          timeout=30
+          while ! curl -f http://localhost:8000/ping >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Dev app failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test /ping in dev
+        run: |
+          response=$(curl -s http://localhost:8000/ping)
+          if [[ "$response" != '{"message":"pong"}' ]]; then
+            echo "/ping in dev: expected pong, got $response"
+            exit 1
+          fi
+
+      - name: Test /visits in dev (must be -1)
+        run: |
+          response=$(curl -s http://localhost:8000/visits)
+          if [[ "$response" != '{"visits":-1}' ]]; then
+            echo "/visits in dev: expected -1, got $response"
+            exit 1
+          fi
+
+      - name: Show dev logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml logs
