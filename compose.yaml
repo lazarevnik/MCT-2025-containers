@@ -1,0 +1,50 @@
+services:
+  web:
+    build: web/
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: "postgres:17-alpine3.22"
+    environment:
+      POSTGRES_USER: 11cloud2
+      POSTGRES_DB: 11cloud2_db
+      POSTGRES_PASSWORD: zeroZEROzeroZERO
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - type: bind
+        source: db/pg_hba.conf
+        target: /var/lib/postgresql/data/pg_hba.conf
+    expose:
+      - 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U 11cloud2 -d 11cloud2_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    depends_on:
+      dbinit:
+        condition: service_completed_successfully
+
+  dbinit:
+    image: "alpine:3.22"
+    environment:
+      POSTGRES_USER: 11cloud2
+      POSTGRES_DB: 11cloud2_db
+      POSTGRES_PASSWORD: zeroZEROzeroZERO
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - type: bind
+        source: dbinit/initdb.sh
+        target: /initdb.sh
+        read_only: true
+    command: /bin/ash /initdb.sh
+    
+
+volumes:
+  db_data:

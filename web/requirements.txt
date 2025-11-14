@@ -1,0 +1,3 @@
+psycopg>=3.2.12
+psycopg_binary
+Flask>=3.1.2

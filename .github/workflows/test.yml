@@ -15,6 +15,25 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Check DB init script exit status
+        run: |
+          timeout=20
+          while [[ "$(docker compose ps -a --format '{{.State}}' dbinit)" != "exited" ]]; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "DB init took too long"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ $(docker compose ps -a --format '{{.ExitCode}}' dbinit) ]]; then
+            echo "DB initialized successfully!"
+          else
+            echo "Failed to initialize the DB"
+            echo "ExitCode: $(docker compose ps -a --format '{{.ExitCode}}' dbinit)"
+            exit 1
+          fi
+
       - name: Wait for web to be ready
         run: |
           timeout=60
