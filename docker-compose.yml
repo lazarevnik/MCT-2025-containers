@@ -27,7 +27,7 @@ services:
       db:
         condition: service_healthy
 
-  pingpong:
+  web:
     build:
       context: .
       dockerfile: pingpong.Dockerfile
