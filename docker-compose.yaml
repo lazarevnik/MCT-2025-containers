@@ -8,6 +8,28 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@db/app
     depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  db-init:
+    image: postgres:15-alpine
+    environment:
+      - PGHOST=db
+      - PGDATABASE=app
+      - PGUSER=user
+      - PGPASSWORD=password
+    volumes:
+      - ./db/db_init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      sh -c "
+        echo 'Ожидание готовности базы данных...'
+        while ! pg_isready -q -h db -U user -d app; do
+          sleep 1;
+        done;
+        echo 'База данных готова. Выполнение скрипта...'
+        psql -f /docker-entrypoint-initdb.d/init.sql
+      "
+    depends_on:
       - db
 
   db:

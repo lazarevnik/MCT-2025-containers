@@ -15,6 +15,27 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      # Task 1 modification
+      - name: Verify DB initialization script completed successfully
+        run: |
+          timeout=60
+          while [ "$(docker compose ps -q db-init | wc -l)" -gt 0 ]; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "DB init service did not exit in time"
+              exit 1
+            fi
+            sleep 1
+          done
+          
+          exit_code=$(docker inspect $(docker ps -a -q --filter "name=db-init") --format='{{.State.ExitCode}}')
+          if [[ "$exit_code" -ne 0 ]]; then
+            echo "DB init service failed with exit code: $exit_code"
+            docker compose logs db-init
+            exit 1
+          fi
+          echo "DB init service completed successfully!"
+
       - name: Wait for web to be ready
         run: |
           timeout=60

@@ -32,15 +32,15 @@ def db_cursor():
         conn.close()
 
 
-def init_db():
-    with db_cursor() as cur:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS visits (
-                id SERIAL PRIMARY KEY,
-                ip_address VARCHAR(45) NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
+# def init_db():
+#     with db_cursor() as cur:
+#         cur.execute("""
+#             CREATE TABLE IF NOT EXISTS visits (
+#                 id SERIAL PRIMARY KEY,
+#                 ip_address VARCHAR(45) NOT NULL,
+#                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+#             );
+#         """)
 
 
 @app.get("/")
@@ -53,7 +53,7 @@ def ping(request: Request):
     client_ip = request.client.host
     with db_cursor() as cur:
         cur.execute("INSERT INTO visits (ip_address) VALUES (%s)", (client_ip,))
-    return Response(content="pong\n", media_type="text/plain")
+    return Response(content="pong", media_type="text/plain")
 
 
 @app.get("/visits", response_class=Response)
@@ -62,7 +62,7 @@ def get_visits():
         cur.execute("SELECT COUNT(*) AS total_visits FROM visits;")
         result = cur.fetchone()
         count = result[0] if result else 0
-    return Response(content=f"{str(count)}\n", media_type="text/plain")
+    return Response(content=str(count), media_type="text/plain")
 
 
-init_db()
+# init_db()
