@@ -11,6 +11,11 @@ params = {
     'password': os.getenv('PASSWORD')
 }
 
+
+@app.route('/')
+def test():
+    return "meow"
+
 @app.route('/ping')
 def ping():
     connect = psycopg2.connect(**params)
