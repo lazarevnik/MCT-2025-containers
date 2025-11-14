@@ -36,7 +36,30 @@ jobs:
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T db pg_isready -U postgres -d pingpong
+
+      - name: Wait for LLM service to be ready
+        run: |
+          timeout=180
+          while ! curl -f http://localhost:8000/health >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "LLM service failed to start"
+              docker compose logs llm
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "LLM service is ready!"
+
+      - name: Test silly-visits endpoint
+        run: |
+          response=$(curl -s http://localhost:80/silly-visits)
+          if [ -z "$response" ]; then
+            echo "silly-visits endpoint returned empty response"
+            exit 1
+          fi
+          echo "Silly-visits test passed! Response: $response"
 
       - name: Show logs on failure
         if: failure()
