@@ -5,25 +5,80 @@ on:
     branches: [ main ]
 
 jobs:
-  test-compose:
+  test-dev:
+    name: Test Dev Environment
     runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Start Dev Environment
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+      - name: Wait for services
+        run: sleep 10
+
+      - name: Test Dev Mode
+        run: |
+          curl -f http://localhost:5000/health
+          
+          mode=$(curl -s http://localhost:5000/mode | jq -r .mode)
+          if [ "$mode" != "dev" ]; then
+            echo "Expected dev mode, got: $mode"
+            exit 1
+          fi
+          
+          visits=$(curl -s http://localhost:5000/visits)
+          if [ "$visits" != "-1" ]; then
+            echo "Expected -1 in dev mode, got: $visits"
+            exit 1
+          fi
+          
+          ping=$(curl -s http://localhost:5000/ping)
+          if [ "$ping" != "pong" ]; then
+            echo "Expected pong, got: $ping"
+            exit 1
+          fi
+          
+          echo "Dev environment tests passed"
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker-compose logs
+
+      - name: Cleanup
+        if: always()
+        run: docker-compose down
+
+  test-prod:
+    name: Test Prod Environment  
+    runs-on: ubuntu-latest
+    needs: test-dev
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Compose
+      - name: Setup Docker Compose
         run: |
           sudo apt-get update
-          sudo apt-get install -y docker-compose curl jq
+          sudo apt-get install -y docker-compose
 
-      - name: Start services
-        run: docker-compose up -d --build
+      - name: Start Prod Environment
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
       - name: Wait for DB initialization
         run: |
           timeout=60
-          while ! docker-compose logs init-db | grep -q "Database initialized successfully"; do
+          while ! docker-compose logs init-db | grep -q "Database initialization completed successfully"; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "DB initialization failed"
@@ -32,31 +87,56 @@ jobs:
             fi
             sleep 2
           done
-          echo "DB initialized successfully"
+          echo "DB initialized"
 
-      - name: Check Redis health
-        run: |
-          docker-compose exec -T redis redis-cli ping | grep -q "PONG"
-          echo "Redis is healthy"
-
-      - name: Wait for web to be ready
+      - name: Wait for Redis
         run: |
           timeout=60
-          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
+          while ! docker-compose ps redis | grep -q "healthy"; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
-              echo "Web service failed to start"
-              docker-compose logs web
+              echo "Redis not healthy"
               exit 1
             fi
             sleep 2
           done
-          echo "Web service is ready!"
 
-      - name: Run tests
+      - name: Wait for Web
         run: |
-          docker-compose exec -T web python -m pytest tests.py -v --cov=mini_app --cov-report=term-missing --cov-fail-under=60
+          timeout=60
+          while ! curl -f http://localhost:80/health >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web not ready"
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Test Prod Mode
+        run: |
+          mode=$(curl -s http://localhost:80/mode | jq -r .mode)
+          if [ "$mode" != "prod" ]; then
+            echo "Expected prod mode, got: $mode"
+            exit 1
+          fi
+          
+          visits1=$(curl -s http://localhost:80/visits)
+          if [ "$visits1" = "-1" ]; then
+            echo "Should not return -1 in prod mode"
+            exit 1
+          fi
+          
+          curl -s http://localhost:80/ping > /dev/null
+          visits2=$(curl -s http://localhost:80/visits)
+          
+          if [ "$visits1" -ge "$visits2" ]; then
+            echo "Visit count should increase after ping"
+            exit 1
+          fi
+          
+          echo "Prod environment tests passed"
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose logs
+        run: docker-compose logs

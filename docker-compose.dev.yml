@@ -1,0 +1,15 @@
+services:
+  web:
+    environment:
+      - APP_MODE=dev
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+
+  # В dev отключаем ненужные сервисы
+  init-db:
+    profiles: ["skip"]
+  
+  redis:
+    profiles: ["skip"]

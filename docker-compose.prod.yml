@@ -1,0 +1,17 @@
+services:
+  web:
+    environment:
+      - APP_MODE=prod
+    ports:
+      - "80:5000"
+    depends_on:
+      init-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  init-db:
+    profiles: ["run"]
+
+  redis:
+    profiles: ["run"]
