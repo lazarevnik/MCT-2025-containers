@@ -62,7 +62,7 @@ jobs:
         run: docker compose down
 
       - name: Start dev services
-        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
       - name: Test dev 
         run: |
