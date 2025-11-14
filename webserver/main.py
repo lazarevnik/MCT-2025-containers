@@ -20,7 +20,7 @@ def ping(request: Request):
         incoming_request = RequestDb(ip=ip, time=datetime.now(), request="ping")
         session.add(incoming_request)
         session.commit()
-    return "pong" 
+    return {"response": "pong"}
 
 @app.get("/visits")
 def visits(request: Request):
@@ -31,5 +31,5 @@ def visits(request: Request):
         count = session.query(RequestDb).filter(RequestDb.request == "ping").count()
         session.add(incoming_request)
         session.commit()
-    return count
+    return {"response": count}
 
