@@ -30,7 +30,7 @@ jobs:
       - name: Test web response
         run: |
           response=$(curl -s http://localhost:5000/ping)
-          if [[ "$response" != "pong" ]]; then
+          if [[ $response != "pong" ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
           fi
