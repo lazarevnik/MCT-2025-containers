@@ -13,7 +13,6 @@ services:
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
     depends_on:
       db:
         condition: service_healthy
@@ -46,7 +45,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    profiles: [prod]
   
   redis:
     image: redis:7-alpine
@@ -55,7 +53,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    profiles: [prod]
 
 volumes:
   postgres_data:

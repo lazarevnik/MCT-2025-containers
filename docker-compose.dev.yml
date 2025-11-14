@@ -2,11 +2,12 @@ services:
   web:
     environment:
       - APP_MODE=dev
+      - REDIS_HOST=localhost
     ports:
       - "5000:5000"
-    depends_on:
-      - db
+
+  init-db:
     profiles: [dev]
 
-  db:
+  redis:
     profiles: [dev]
