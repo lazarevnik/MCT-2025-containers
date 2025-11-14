@@ -5,11 +5,10 @@ services:
       POSTGRES_PASSWORD: "123"
       POSTGRES_USER: "user"
       POSTGRES_DB: "app"
+    command: postgres
  
   app:
     build: .
     ports:
       - "5000:5000"
-    depends_on:
-      - db
    
