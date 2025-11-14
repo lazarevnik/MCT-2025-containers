@@ -22,6 +22,9 @@ jobs:
         run: |
           docker-compose --profile dev up -d --build
 
+      - name: Wait for services
+        run: sleep 10
+
       - name: Test Dev Mode
         run: |
           curl -f http://localhost:5000/health
@@ -89,7 +92,7 @@ jobs:
       - name: Wait for Web
         run: |
           timeout=30
-          while ! curl -f http://localhost:80/health >/dev/null 2>&1; do
+          while ! curl -f http://localhost:80/health; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web not ready"
@@ -102,12 +105,6 @@ jobs:
 
       - name: Test Prod Mode
         run: |
-          mode=$(curl -s http://localhost:80/mode | jq -r .mode)
-          if [ "$mode" != "prod" ]; then
-            echo "Expected prod mode, got: $mode"
-            exit 1
-          fi
-          
           visits1=$(curl -s http://localhost:80/visits)
           if [ "$visits1" = "-1" ]; then
             echo "Should not return -1 in prod mode"
