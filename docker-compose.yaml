@@ -1,0 +1,31 @@
+version: '3'
+services:
+  db:
+    container_name: db
+    image: mariadb:10.11
+    restart: always
+    healthcheck:
+      # healthcheck from https://mariadb.com/docs/server/server-management/install-and-upgrade-mariadb/installing-mariadb/binary-packages/automated-mariadb-deployment-and-administration/docker-and-mariadb/using-healthcheck-sh
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      retries: 10
+      start_period: 5s
+      interval: 5s
+      timeout: 3s
+    env_file:
+      - ./credentials/db.env
+    volumes:
+      - ./resources:/docker-entrypoint-initdb.d/:ro # database dump
+
+  app:
+    container_name: app
+    restart: always
+    links:
+      - "db"
+    depends_on:
+      db:
+        condition: service_healthy
+    build: ./
+    env_file:
+      - ./credentials/app.env
+    ports:
+      - "5000:80"

@@ -1,6 +1,7 @@
 name: Docker Compose Test
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [ main ]
 
@@ -36,9 +37,9 @@ jobs:
           fi
           echo "Web test passed!"
 
-      - name: Test PostgreSQL connection
+      - name: Test MariaDB connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T db healthcheck.sh --connect --innodb_initialized # pg_isready -U user -d app
 
       - name: Show logs on failure
         if: failure()
