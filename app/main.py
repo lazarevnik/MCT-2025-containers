@@ -29,7 +29,7 @@ def ping(request: Request):
         conn.commit()
         cur.close()
         conn.close()
-    return "pong"
+    return 'pong'
 
 
 @app.get("/visits")
