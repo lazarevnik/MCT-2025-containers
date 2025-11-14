@@ -3,6 +3,23 @@ services:
     build: ./web_master
     ports:
       - "5000:5000"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=app
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_PORT=5432
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
     networks:
       - app-network
 
