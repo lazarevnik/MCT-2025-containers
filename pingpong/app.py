@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import PlainTextResponse
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -83,7 +84,7 @@ For example, for "one" you might say: fun, sun, run"""
         rhymes = (words + ["bun", "fun", "done"])[:3]
         return rhymes
     except Exception:
-        # Fallback rhymes if LLM fails
+        logger.exception("Error during llm call")
         return ["fun", "run", "sun"]
 
 

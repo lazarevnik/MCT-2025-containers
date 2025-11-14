@@ -66,7 +66,7 @@ class LLMSettings(BaseSettings):
 
     model_config = SettingsConfigDict(case_sensitive=False, env_prefix="LLM_")
 
-    base_url: str = Field("http://vllm:8000/v1", description="LLM API base URL")
+    base_url: str = Field("http://llm:8000/v1", description="LLM API base URL")
     api_key: str = Field("EMPTY", description="LLM API key (not required for local)")
     model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"
 
