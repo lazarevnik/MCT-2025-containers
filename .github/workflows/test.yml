@@ -20,7 +20,7 @@ jobs:
 
       - name: Start Dev Environment
         run: |
-          docker compose --profile dev up -d --build
+          docker-compose --profile dev up -d --build
 
       - name: Wait for services
         run: sleep 10
@@ -74,7 +74,7 @@ jobs:
 
       - name: Start Prod Environment
         run: |
-          docker compose --profile prod up -d --build
+          docker-compose --profile prod up -d --build
 
       - name: Wait for DB initialization
         run: |
