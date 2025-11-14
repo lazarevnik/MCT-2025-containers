@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pingpong
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  init-db:
+    build: .
+    command: uv run init_db.py
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  download-model:
+    image: python:3.12-slim
+    volumes:
+      - llm_models:/models
+    working_dir: /models
+    command: >
+      bash -c "
+        pip install -q huggingface_hub &&
+        python -c 'from huggingface_hub import hf_hub_download; hf_hub_download(repo_id=\"Qwen/Qwen2.5-0.5B-Instruct-GGUF\", filename=\"qwen2.5-0.5b-instruct-q5_k_m.gguf\", local_dir=\".\", local_dir_use_symlinks=False)'
+      "
+    restart: on-failure
+
+  llm:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    ports:
+      - "8000:8000"
+    volumes:
+      - llm_models:/models
+    command: -m /models/qwen2.5-0.5b-instruct-q5_k_m.gguf --port 8000 --host 0.0.0.0 -n 512
+    depends_on:
+      download-model:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  llm_models:

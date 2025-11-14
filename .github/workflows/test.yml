@@ -1,8 +1,6 @@
 name: Docker Compose Test
 
-on:
-  pull_request:
-    branches: [ main ]
+on: [ pull_request ]
 
 jobs:
   test-compose:
@@ -38,8 +36,85 @@ jobs:
 
       - name: Test PostgreSQL connection
         run: |
-          docker compose exec -T db pg_isready -U user -d app
+          docker compose exec -T db pg_isready -U postgres -d pingpong
+
+      - name: Wait for LLM service to be ready
+        run: |
+          timeout=180
+          while ! curl -f http://localhost:8000/health >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "LLM service failed to start"
+              docker compose logs llm
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "LLM service is ready!"
+
+      - name: Test silly-visits endpoint
+        run: |
+          response=$(curl -s http://localhost:5000/silly-visits)
+          if [ -z "$response" ]; then
+            echo "silly-visits endpoint returned empty response"
+            exit 1
+          fi
+          echo "Silly-visits test passed! Response: $response"
 
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
+
+  pytest:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pingpong_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      
+      - name: Install dependencies
+        run: uv sync --group dev
+      
+      - name: Run tests with coverage
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_DATABASE: pingpong_test
+        run: |
+          uv run pytest --cov=pingpong --cov-report=term-missing --cov-report=xml --cov-fail-under=60 -v
+      
+      - name: Upload coverage to artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            htmlcov/

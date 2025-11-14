@@ -1,0 +1,39 @@
+[project]
+name = "mct-2025-containers"
+version = "0.1.0"
+description = "Simple ping-pong application"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "asyncpg>=0.30.0,<0.30.1",
+    "fastapi>=0.121.1,<0.121.2",
+    "greenlet>=3.0.0,<4.0.0",
+    "loguru>=0.7.3,<0.7.4",
+    "openai>=2.8.0,<2.9.0",
+    "pydantic-settings>=2.12.0,<2.13.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "sqlalchemy>=2.0.44,<2.1.0",
+    "uvicorn>=0.38.0,<0.38.1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1,<0.28.2",
+    "pytest>=9.0.1,<9.1.0",
+    "pytest-asyncio>=1.3.0,<1.4.0",
+    "pytest-cov>=7.0.0,<7.1.0",
+    "testcontainers>=4.13.2,<4.14.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = [
+    "--cov=pingpong",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-fail-under=60",
+    "-v",
+]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
