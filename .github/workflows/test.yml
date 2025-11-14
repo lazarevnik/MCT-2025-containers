@@ -64,13 +64,26 @@ jobs:
       - name: Start dev services
         run: docker compose -f docker-compose.yml -f docker-compose-dev.yml up -d
 
+      - name: Wait for web to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+          
       - name: Test dev 
         run: |
           response=$(curl -s http://localhost:5000/visits)
-          if [[ "$response" != "-1" ]]; then
+          if [[ "$response" != -1 ]]; then
             echo "Expected -1 in Dev, got $response"
             exit 1
           fi
+          echo "Dev test passed!"
 
       - name: Show logs on failure
         if: failure()
