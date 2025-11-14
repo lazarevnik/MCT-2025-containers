@@ -1,0 +1,48 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5000:80"
+    environment:
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_HOST=db
+      - DB_NAME=mydb
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mydb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    healthcheck: # для проверки, что БД нормально поднимается до запуска приложения
+      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-init:
+    image: postgres:13
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./db_init/init.sql:/tmp/init.sql
+    environment:
+      - PGPASSWORD=password
+      - POSTGRES_USER=user
+      - POSTGRES_DB=mydb
+      - POSTGRES_HOST=db
+    command: >
+      bash -c "psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d $$POSTGRES_DB -f /tmp/init.sql"
+
+volumes:
+  postgres_data:

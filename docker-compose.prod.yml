@@ -1,0 +1,5 @@
+# docker-compose.prod.yml
+services:
+  app:
+    environment:
+      - APP_ENV=prod
