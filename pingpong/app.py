@@ -13,6 +13,12 @@ settings = DatabaseSettings()
 app = FastAPI(title="Ping-Pong API")
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    """Root endpoint for health checks."""
+    return {"status": "ok"}
+
+
 async def get_db() -> AsyncSession:
     """Get database session."""
     async with settings.async_session_maker() as session:
