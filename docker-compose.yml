@@ -37,9 +37,8 @@ services:
     volumes:
       - ./db_init/init.sql:/docker-entrypoint-initdb.d/init.sql # sql-скрипт
     environment:
-      - PGPASSWORD=${POSTGRES_PASSWORD}
+      - PGPASSWORD=password
       - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
       - POSTGRES_DB=mydb
       - POSTGRES_HOST=db
     command: >
