@@ -46,11 +46,13 @@ def visits():
     cached = r.get("total_visits")
     if cached is not None:
         return {"visits": int(cached)}
-        conn = get_db_connection()
+    
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM visits;")
     count = cur.fetchone()[0]
     cur.close()
     conn.close()
+
     r.set("total_visits", count)
     return {"visits": count}

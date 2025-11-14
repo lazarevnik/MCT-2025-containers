@@ -76,6 +76,23 @@ jobs:
             echo "Expected 3 rows in DB, got: $count"
             exit 1
           fi
+      - name: Run application tests with coverage
+        run: |
+          docker compose exec -T app pytest \
+            --cov=/app \
+            --cov-fail-under=60 \
+            --cov-report=term-missing \
+            -v
+
+      - name: Verify integration (optional double-check)
+        run: |
+          curl -s http://localhost:8000/ping >/dev/null
+          visits=$(curl -s http://localhost:8000/visits | jq -r '.visits')
+          if [[ "$visits" -lt 1 ]]; then
+            echo "Integration test failed"
+            exit 1
+          fi
+
 
       - name: Show logs on failure
         if: failure()

@@ -7,7 +7,7 @@ SUPER_USER = os.getenv("DB_SUPER_USER", "postgres")
 SUPER_PASSWORD = os.getenv("DB_SUPER_PASSWORD", "1111")
 DB_HOST = os.getenv("DB_HOST", "db")
 TARGET_DB = os.getenv("DB_NAME", "visitsdb")
-TARGET_USER = os.getenv("DB_USER", "postgres")
+TARGET_USER = os.getenv("DB_USER", "user")
 TARGET_PASSWORD = os.getenv("DB_PASSWORD", "1111")
 
 def wait_for_postgres():
@@ -97,9 +97,12 @@ def grant_privileges():
     print(f"Granted privileges on schema public to '{TARGET_USER}'.")
     cur.close()
     conn.close()
-if __name__ == "__main__":
+def main():
     wait_for_postgres()
     create_user_and_db()
-    grant_privileges() 
+    grant_privileges()
     create_table()
     print("Database initialization completed.")
+
+if __name__ == "__main__":
+    main()
