@@ -38,7 +38,6 @@ services:
 
   download-model:
     image: python:3.12-slim
-  llm_models:
     volumes:
       - llm_models:/models
     working_dir: /models
@@ -63,3 +62,4 @@ services:
 
 volumes:
   postgres_data:
+  llm_models:

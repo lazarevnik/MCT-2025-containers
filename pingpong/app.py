@@ -61,12 +61,10 @@ async def visits(
     return visit.visit_count if visit else 0
 
 
-async def get_rhyming_words(number: int) -> list[str]:
+async def get_poem(number: int) -> str | None:
     """Use vLLM to generate three words that rhyme with a number."""
     try:
-        prompt = f"""Generate exactly three words that rhyme with the number "{number}".
-Just output three words separated by commas, nothing else.
-For example, for "one" you might say: fun, sun, run"""
+        prompt = f"""Generate a silly 4-line poem with phrase `and the visits number is {number}` or something like this"""
 
         response = (
             await get_settings()
@@ -79,13 +77,10 @@ For example, for "one" you might say: fun, sun, run"""
             )
         )
 
-        text = response.choices[0].message.content.strip()
-        words = [w.strip() for w in text.split(",")]
-        rhymes = (words + ["bun", "fun", "done"])[:3]
-        return rhymes
+        return response.choices[0].message.content.strip()
     except Exception:
         logger.exception("Error during llm call")
-        return ["fun", "run", "sun"]
+        return None
 
 
 @app.get("/silly-visits", response_class=PlainTextResponse)
@@ -101,17 +96,4 @@ async def silly_visits(
 
     count = visit.visit_count if visit else 0
 
-    # Get rhyming words from LLM
-    rhymes = await get_rhyming_words(count)
-
-    # Create a silly response
-    return f"""🎉 VISIT COUNTER EXTRAVAGANZA! 🎉
-
-You have visited {count} time(s)!
-
-Words that rhyme with {count}:
-  ✨ {rhymes[0]}
-  ✨ {rhymes[1]}
-  ✨ {rhymes[2]}
-
-Have a fantastically silly day! 🎈"""
+    return await get_poem(count)
