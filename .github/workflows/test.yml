@@ -43,3 +43,38 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
+
+      - name: Test caching functionality
+        run: |
+          sleep 10
+    
+          initial=$(curl -s http://localhost:5000/visits)
+          echo "Initial visits: $initial"
+
+          curl -s http://localhost:5000/ping > /dev/null
+          curl -s http://localhost:5000/ping > /dev/null
+
+          after_ping=$(curl -s http://localhost:5000/visits)
+          if [ "$after_ping" -le "$initial" ]; then
+            echo "Cache test failed: counter didn't increase"
+            exit 1
+          fi
+
+          redis_value=$(docker compose exec -T redis redis-cli GET visits_count)
+          if [ "$redis_value" != "$after_ping" ]; then
+            echo "Redis cache inconsistency"
+            exit 1
+          fi
+    
+          echo "Cache functionality test passed"
+
+      - name: Test cache fallback
+        run: |
+          docker compose stop redis
+          fallback_count=$(curl -s http://localhost:5000/visits)
+          if [ -z "$fallback_count" ]; then
+            echo "Fallback test failed: no response"
+            exit 1
+          fi
+          docker compose start redis
+          echo "Cache fallback test passed"
