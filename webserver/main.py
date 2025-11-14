@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -12,7 +13,7 @@ Base.metadata.create_all(engine)
 def main():
     return "Server is running"
 
-@app.get("/ping")
+@app.get("/ping", response_class=PlainTextResponse)
 def ping(request: Request):
     global engine
     ip = request.client.host
