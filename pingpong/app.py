@@ -8,9 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pingpong.db import Visit
-from pingpong.settings import DatabaseSettings
+from pingpong.settings import get_settings
 
-settings = DatabaseSettings()
+settings = get_settings()
 app = FastAPI(title="Ping-Pong API")
 
 

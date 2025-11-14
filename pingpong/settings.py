@@ -1,3 +1,4 @@
+from collections.abc import Callable
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -7,7 +8,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from collections.abc import Callable
 from sqlalchemy.pool import NullPool
 
 
@@ -58,3 +58,13 @@ class DatabaseSettings(BaseSettings):
             class_=AsyncSession,
             expire_on_commit=False,
         )
+
+
+_settings: DatabaseSettings | None = None
+
+
+def get_settings() -> DatabaseSettings:
+    global _settings
+    if not _settings:
+        _settings = DatabaseSettings()
+    return _settings
