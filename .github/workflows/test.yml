@@ -15,6 +15,16 @@ jobs:
       - name: Start services
         run: docker compose up -d
 
+      - name: Check db-init exit code
+        run: |
+          id=$(docker compose ps -q db-init)
+          code=$(docker inspect -f '{{.State.ExitCode}}' "$id")
+          echo "db-init exit code: $code"
+          if [ "$code" -ne 0 ]; then
+            echo "db-init failed"
+            exit 1
+          fi  
+
       - name: Wait for web to be ready
         run: |
           timeout=60
