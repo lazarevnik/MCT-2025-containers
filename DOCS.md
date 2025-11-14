@@ -1,6 +1,6 @@
 # Сам себе DevOps
 
-Этот проект содержит небольшой RESTful API и минимальный набор контейнерфайлов для развертываения его в облаке. В качестве доп. заданий я добавил скрипты инициализации БД и кеширование 
+Этот проект содержит небольшой RESTful API и минимальный набор контейнерфайлов для развертываения его в облаке. В качестве доп. заданий я добавил скрипты инициализации БД, кеширование и улучшил тесты 
 
 ## Ping API
 
@@ -226,4 +226,58 @@ make docker-build  # Собрать Docker образ
 make docker-up     # Запустить все сервисы в Docker
 make docker-down   # Остановить все сервисы
 make migrate       # Применить миграции
+```
+
+## Улучшиения в тестах
+
+Добавил два новых теста: для проверки бизнес-логики приложения и для проверки, что СУБД сохраняет данные от запуска к запуску, если данные не стерты явным образом
+
+### Test visit counter
+
+В этом тесте случайным образом инициализируется положительное целое от 5 до 100, означающее колличество запросов, которые будем делать к приложению
+
+```Bash
+random_count=$((RANDOM % 96 + 5))
+echo "Making $random_count requests to /ping endpoint..."
+
+for i in $(seq 1 $random_count); do
+response=$(curl -s http://localhost:5000/ping)
+if [[ "$response" != "pong" ]]; then
+    echo "Request $i failed: expected 'pong', got: $response"
+    exit 1
+fi
+done
+```
+
+После чего просто сравниваем колличество сделанных запросов с тем, что получили по маршруту `/visits`
+```Bash
+visits=$(curl -s http://localhost:5000/visits)
+if [[ "$visits" != "$random_count" ]]; then
+    echo "Visit count mismatch: expected: $random_count, got: $visits"
+    exit 1
+fi
+```
+
+### Test volume persistence
+
+В условии задания в разделе "Автоматизация" в п. 3 сказано: "СУБД Должна сохранять данные от запуска к запуску, если данные не стёрты явным образом." Этот тест как раз предназначен на проверку сохранния данных при перезапуске контейнера. Так как с прошлого теста в базе уже хранится запись, то проверить персистентность можно перезапустив контейнер и сравнив полученное значение с ожидаемым.
+
+Соотвественно перезапуск:
+```Bash
+cd deployments
+echo "Stopping containers..."
+docker compose stop api cache
+docker compose ps
+
+echo "Restarting containers..."
+docker compose start cache api
+```
+
+И сравнение:
+```Bash
+visits=$(curl -s http://localhost:5000/visits)
+if [[ "$visits" != "$PING_COUNT" ]]; then
+    echo "Visits counter mismatch: expected: $PING_COUNT, got: $visits"
+    exit 1
+fi
 ```
