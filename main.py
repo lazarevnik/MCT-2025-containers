@@ -40,3 +40,7 @@ def print_visits():
     with Session(engine) as session:
         res = session.exec(select(func.count(Pings.id))).one()
     return res
+
+@app.get("/")
+def root_endpoint(request : Request):
+    return {}
