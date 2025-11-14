@@ -28,7 +28,7 @@ services:
   app:
     build: .
     ports:
-      - "80:5000"
+      - "5000:5000"
     env_file:
       .env
     depends_on:
