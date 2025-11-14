@@ -40,7 +40,7 @@ services:
       redis:
         condition: service_healthy
       init-db:
-        condition: service_healthy
+        condition: service_completed_successfully
     profiles: [prod]
 
   db:
@@ -70,11 +70,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/init_complete || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
     profiles: [prod]
 
   redis:
