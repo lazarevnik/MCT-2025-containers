@@ -54,7 +54,7 @@ jobs:
 
       - name: Test silly-visits endpoint
         run: |
-          response=$(curl -s http://localhost:80/silly-visits)
+          response=$(curl -s http://localhost:5000/silly-visits)
           if [ -z "$response" ]; then
             echo "silly-visits endpoint returned empty response"
             exit 1
