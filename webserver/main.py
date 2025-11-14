@@ -8,6 +8,10 @@ app = FastAPI()
 engine = create_engine("postgresql+psycopg://user:pass@db:5432/posdb", echo=True)
 Base.metadata.create_all(engine)
 
+@app.get("/")
+def main():
+    return "Server is running"
+
 @app.get("/ping")
 def ping(request: Request):
     global engine
@@ -16,10 +20,10 @@ def ping(request: Request):
         incoming_request = RequestDb(ip=ip, time=datetime.now(), request="ping")
         session.add(incoming_request)
         session.commit()
-    return "Pong" 
+    return "pong" 
 
 @app.get("/visits")
-def ping(request: Request):
+def visits(request: Request):
     global engine
     ip = request.client.host
     with Session(engine) as session:
