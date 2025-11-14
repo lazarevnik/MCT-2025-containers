@@ -19,7 +19,7 @@ services:
     build: .
     command: uv run init_db.py
     env_file:
-      .env
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -30,7 +30,7 @@ services:
     ports:
       - "5000:5000"
     env_file:
-      .env
+      - .env
     depends_on:
       init-db:
         condition: service_completed_successfully
