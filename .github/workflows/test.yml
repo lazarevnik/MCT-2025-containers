@@ -40,6 +40,51 @@ jobs:
         run: |
           docker compose exec -T db pg_isready -U user -d app
 
+      - name: Test PostgreSQL init
+        run: |
+          tables=$(docker compose exec -i db psql -U user -d posdb -t -c "\dt" 2>/dev/null)
+          if [[ "$tables" != " public | requests | table | user" ]]; then
+            echo "No tables or db doesnt exist"
+            exit 1
+          fi
+          echo "Db init test passed!"
+
+      - name: Test Redis
+        run: |
+          key=$(docker compose exec -T redis redis-cli KEYS '*' 2>/dev/null)
+          if [[ "$key" != "visits" ]]; then
+            echo "No key in redis or redis not working"
+            exit 1
+          fi
+          echo "Redis test passed!"
+
+      - name: Stop services
+        run: docker compose down
+
+      - name: Start dev services
+        run: docker compose -f docker-compose.yml -f docker-compose-dev.yml up -d
+
+      - name: Wait for web to be ready
+        run: |
+          timeout=60
+          while ! curl -f http://localhost:5000 >/dev/null 2>&1; do
+            ((timeout--))
+            if [ $timeout -eq 0 ]; then
+              echo "Web service failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+          
+      - name: Test dev 
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != -1 ]]; then
+            echo "Expected -1 in Dev, got $response"
+            exit 1
+          fi
+          echo "Dev test passed!"
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
