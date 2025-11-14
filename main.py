@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi import Request
 
+from fastapi.responses import PlainTextResponse
+
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from sqlalchemy import func
