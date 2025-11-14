@@ -58,6 +58,20 @@ jobs:
           fi
           echo "Redis test passed!"
 
+      - name: Stop services
+        run: docker compose down
+
+      - name: Start dev services
+        run: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+      - name: Test dev 
+        run: |
+          response=$(curl -s http://localhost:5000/visits)
+          if [[ "$response" != "-1" ]]; then
+            echo "Expected -1 in Dev, got $response"
+            exit 1
+          fi
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs

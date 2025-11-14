@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from initdb.db import RequestDb
 import redis
+import os
+
+ENV = os.getenv("MODE", "prod")
 
 app = FastAPI()
 engine = create_engine("postgresql+psycopg://user:pass@db:5432/posdb", echo=True)
@@ -33,5 +36,7 @@ def ping(request: Request):
 
 @app.get("/visits")
 def visits(request: Request):
+    if ENV == "dev":
+        return -1
     return r.get("visits")
 
