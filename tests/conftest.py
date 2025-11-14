@@ -9,14 +9,14 @@ from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from testcontainers.postgres import PostgresContainer
 
-from pingpong.settings import DatabaseSettings, get_settings
+from pingpong.settings import DatabaseSettings, Settings, get_settings
 
 
 @pytest.fixture(scope="session")
-def override_settings() -> Generator[None, None, None]:
+def db_settings() -> Generator[DatabaseSettings, None, None]:
     """Generate test database URL from postgres container."""
     with PostgresContainer("postgres:16.10-alpine") as container:
-        settings = DatabaseSettings(
+        yield DatabaseSettings(
             host=container.get_container_host_ip(),
             port=container.get_exposed_port(5432),
             user=container.username,
@@ -24,8 +24,13 @@ def override_settings() -> Generator[None, None, None]:
             database=container.dbname,
             disable_pooling=True,
         )
-        with patch("pingpong.settings._settings", new=settings):
-            yield
+
+
+@pytest.fixture(scope="session")
+def override_settings(db_settings: DatabaseSettings) -> Generator[None, None, None]:
+    settings = Settings(db=db_settings)
+    with patch("pingpong.settings._settings", new=settings):
+        yield
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
