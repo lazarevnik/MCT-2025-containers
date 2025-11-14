@@ -9,5 +9,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-#waittng db port
-CMD ["sh", "-c", "wait-for-it db:5432 --timeout=30 -- python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
