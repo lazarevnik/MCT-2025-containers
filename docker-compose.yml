@@ -35,7 +35,3 @@ services:
     depends_on:
       initdb:
         condition: service_completed_successfully
-
-
-
-

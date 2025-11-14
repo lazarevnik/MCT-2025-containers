@@ -40,6 +40,16 @@ jobs:
         run: |
           docker compose exec -T db pg_isready -U user -d app
 
+      - name: Test PostgreSQL init
+        run: |
+          tables=$(docker compose exec -i db psql -U user -d posdb -t -c "\dt" 2>/dev/null)
+          if [[ "$tables" != " public | requests | table | user" ]]; then
+            echo "No tables or db doesnt exist"
+            exit 1
+          fi
+          echo "Db init test passed!"
+
+
       - name: Show logs on failure
         if: failure()
         run: docker compose logs
