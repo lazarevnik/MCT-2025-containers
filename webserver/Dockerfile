@@ -1,0 +1,12 @@
+FROM python:3.12-slim-trixie
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Из гайда uv https://docs.astral.sh/uv/guides/integration/docker/#available-images
+
+ADD . /app
+
+WORKDIR /app
+RUN uv sync --locked
+
+EXPOSE 8000
+
+CMD ["uv", "run", "fastapi", "run", "main.py"]
