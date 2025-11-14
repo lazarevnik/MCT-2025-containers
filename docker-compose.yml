@@ -1,0 +1,25 @@
+services:
+  app:
+    build: .
+    container_name: app
+    ports:
+      - "5000:5000"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: visits
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: visits
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
