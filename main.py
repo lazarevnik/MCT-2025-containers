@@ -42,15 +42,15 @@ def init_db():
             conn.commit()
             cur.close()
             conn.close()
-            print("✅ Database initialized successfully")
+            print("Database initialized successfully")
             return
         except Exception as e:
-            print(f"⚠️ Database connection attempt {attempt + 1} failed: {e}")
+            print(f"Database connection attempt {attempt + 1} failed: {e}")
             if attempt < max_retries - 1:
                 print(f"🔄 Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
             else:
-                print("❌ All database connection attempts failed")
+                print("All database connection attempts failed")
                 raise
 
 @app.on_event("startup")
@@ -93,37 +93,3 @@ async def get_visits():
         return {"total_visits": count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-@app.get("/visits/details")
-async def get_visits_details():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT ip, user_agent, created_at FROM visits ORDER BY created_at DESC")
-        visits = cur.fetchall()
-        cur.close()
-        conn.close()
-        return {
-            "total_visits": len(visits),
-            "visits": visits
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-@app.get("/health")
-async def health():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT 1")
-        cur.close()
-        conn.close()
-        db_status = "healthy"
-    except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
-    
-    return {
-        "status": "healthy",
-        "database": db_status,
-        "timestamp": time.time()
-    }
