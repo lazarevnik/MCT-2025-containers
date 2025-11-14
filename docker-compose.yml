@@ -35,14 +35,14 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./db_init/init.sql:/docker-entrypoint-initdb.d/init.sql # sql-скрипт
+      - ./db_init/init.sql:/tmp/init.sql
     environment:
       - PGPASSWORD=password
       - POSTGRES_USER=user
       - POSTGRES_DB=mydb
       - POSTGRES_HOST=db
     command: >
-      bash -c "psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d $$POSTGRES_DB -f /docker-entrypoint-initdb.d/init.sql"
+      bash -c "psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d $$POSTGRES_DB -f /tmp/init.sql"
 
 volumes:
   postgres_data:
