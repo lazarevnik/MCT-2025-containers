@@ -4,6 +4,11 @@ from pg_config import get_pg_conn
 app = Flask(__name__)
 
 
+@app.route("/")
+def home():
+    return "easter egg"
+
+
 @app.route("/ping")
 def ping():
     conn = get_pg_conn()
