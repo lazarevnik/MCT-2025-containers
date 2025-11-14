@@ -19,28 +19,28 @@ jobs:
         run: |
           timeout=60
           while true; do
-            status=$(docker compose ps pg-init --format json | jq -r '.[] | .Service + " " + .Status' 2>/dev/null || echo "")
-            echo "Current pg-init status: $status"
-            
-            if echo "$status" | grep -q "exited (0)"; then
+          status=$(docker compose ps pg-init --status=exited)
+          echo "Current pg-init status: $status"
+
+          if echo "$status" | grep -q "Exited (0)"; then
               echo "pg-init service completed successfully"
               break
-            fi
+          fi
 
-            if echo "$status" | grep -q "exited (1)"; then
+          if echo "$status" | grep -q "Exited (1)"; then
               echo "pg-init service failed"
               docker compose logs pg-init
               exit 1
-            fi
-            
-            ((timeout--))
-            if [ $timeout -eq 0 ]; then
+          fi
+
+          ((timeout--))
+          if [ $timeout -eq 0 ]; then
               echo "Timeout waiting for pg-init service"
               docker compose logs pg-init
               exit 1
-            fi
-            
-            sleep 1
+          fi
+
+          sleep 1
           done
 
       - name: Wait for web to be ready
