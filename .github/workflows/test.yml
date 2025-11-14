@@ -45,7 +45,7 @@ jobs:
       - name: Wait for web to be ready
         run: |
           timeout=60
-          while ! curl -f http://localhost:8000 >/dev/null 2>&1; do
+          while ! curl -f http://localhost:5000/ping >/dev/null 2>&1; do
             ((timeout--))
             if [ $timeout -eq 0 ]; then
               echo "Web service failed to start"
@@ -56,7 +56,7 @@ jobs:
 
       - name: Test web response
         run: |
-          response=$(curl -s http://localhost:8000/ping)
+          response=$(curl -s http://localhost:5000/ping)
           if [[ "$response" != "pong" ]]; then
             echo "Expected 'pong', got: $response"
             exit 1
