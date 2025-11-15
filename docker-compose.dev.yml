@@ -1,0 +1,15 @@
+services:
+  restbed-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DEV: ${DEV}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      - DEV=1
+      - LOG_LEVEL=info
+    restart: unless-stopped
